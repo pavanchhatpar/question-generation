@@ -1,0 +1,4 @@
+**/venv
+**/*checkpoint.ipynb
+**/*.h5
+**/sampled_images
