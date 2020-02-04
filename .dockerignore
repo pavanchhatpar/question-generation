@@ -3,5 +3,3 @@
 **/*.h5
 **/sampled_images
 *egg-info
-jupyter.password
-**/__pycache__

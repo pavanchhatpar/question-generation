@@ -1,1 +1,0 @@
-docker run -u $(id -u):$(id -g) -it --gpus all --rm -v "`pwd`/$1/src:/tf/src" cs8674_$1

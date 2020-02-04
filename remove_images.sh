@@ -1,2 +1,2 @@
-docker rmi cs8674_$1
-docker rmi cs8674_$1_nb
+docker rmi cs8674_bash
+docker rmi cs8674_nb
