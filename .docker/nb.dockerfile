@@ -8,4 +8,5 @@ RUN pip install -r requirements.txt\
     && mv /root/.jupyter /.jupyter\
     && v="from notebook.auth import passwd; print(passwd('`cat jupyter.password`'))"\
     && python -c "$v" > tmp.txt\
+    && python -m spacy download en_core_web_sm\
     && echo "c.NotebookApp.password='`cat tmp.txt`'" >> /.jupyter/jupyter_notebook_config.py

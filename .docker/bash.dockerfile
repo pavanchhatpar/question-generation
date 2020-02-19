@@ -3,4 +3,5 @@ WORKDIR /tf/src
 RUN apt-get -y update\
     && apt-get install -y graphviz
 COPY . /tf/src
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt\
+    && python -m spacy download en_core_web_sm
