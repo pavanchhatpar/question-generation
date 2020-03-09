@@ -22,6 +22,7 @@ articles, where the answer to every question is a segment of text, or span, \
 from the corresponding reading passage, or the question might be unanswerable.
 """
 
+
 class Squad2(Squad):
     """SQUAD: The Stanford Question Answering Dataset. Version 2.0."""
     _URL = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"

@@ -8,6 +8,6 @@ class FixedEmbedding(Embedding):
             embedding_matrix.shape[1],
             weights=[embedding_matrix],
             trainable=False,
-            # input_length=max_seq_len,
+            input_length=max_seq_len,
             **kwargs
         )

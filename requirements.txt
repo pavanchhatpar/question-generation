@@ -5,4 +5,7 @@ pydotplus==2.0.2
 flake8==3.7.9
 spacy
 ujson
+tensorflow_text
+pandas
+read_only_class_attributes
 -e ./project
