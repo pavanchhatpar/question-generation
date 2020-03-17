@@ -11,12 +11,15 @@ from read_only_class_attributes import read_only
 @read_only('*')
 class _Config:
     WORD2IDX = "/tf/data/squad/word2idx.json"
+    QWORD2IDX = "/tf/data/squad/qword2idx.json"
     DISCOURSEWORDS = "/tf/data/lexicon_rst_pdtb"
     WORDEMBMAT = "/tf/data/squad/word_emb.json"
     SAVELOC = "/tf/data/processed"
     MAX_CONTEXT_LEN = 256  # closest power of 2 from 95 %tile length
     MAX_QLEN = 16  # closest power of 2 from 95 %tile length
     EMBS_DIM = 300
+    QVOCAB_SIZE = 5000
+    LATENT_DIM = 32
 
 
 CONFIG = _Config()
@@ -64,6 +67,17 @@ class QuestionContextPairs:
             word2idx = {}
             for k, v in rawidx.items():
                 word2idx[k.encode("utf-8")] = v
+
+            qrawidx = json.load(open(self.config.QWORD2IDX, "r"))
+            qword2idx = {}
+            for k, v in qrawidx.items():
+                qword2idx[k.encode("utf-8")] = v
+            self.qword2idx0 = tf.lookup.StaticHashTable(
+                tf.lookup.KeyValueTensorInitializer(
+                    list(qword2idx.keys()), list(qword2idx.values()),
+                    key_dtype=tf.string, value_dtype=tf.int32),
+                default_value=tf.constant(0, dtype=tf.int32))
+
             self.word2idx0 = tf.lookup.StaticHashTable(
                 tf.lookup.KeyValueTensorInitializer(
                     list(word2idx.keys()), list(word2idx.values()),
@@ -152,7 +166,7 @@ class QuestionContextPairs:
             inp=[cidx0], Tout=tf.int32
         )
         cidx.set_shape([self.config.MAX_CONTEXT_LEN, ])
-        qidx0 = self.word2idx0.lookup(tokenized['question'])
+        qidx0 = self.qword2idx0.lookup(tokenized['question'])
         qidx = tf.py_function(
             self.py_pad_question,
             inp=[qidx0], Tout=tf.int32
@@ -201,7 +215,7 @@ class QuestionContextPairs:
         writer = tf.data.experimental.TFRecordWriter(fname, "ZLIB")
         writer.write(self.train.map(self.mapper3, num_parallel_calls=-1))
         print("******** Finished saving dataset ********")
-
+    
     @staticmethod
     def parse_ex(example_proto):
         feature_description = {
@@ -214,10 +228,11 @@ class QuestionContextPairs:
         cidx = tf.io.parse_tensor(example['cidx'], out_type=tf.int32)
         cidx.set_shape([CONFIG.MAX_CONTEXT_LEN, ])
         qidx = tf.io.parse_tensor(example['qidx'], out_type=tf.int32)
-        qidx.set_shape([CONFIG.MAX_QLEN, ])
         cdis = tf.io.parse_tensor(example['cdis'], out_type=tf.uint8)
         cdis.set_shape([CONFIG.MAX_CONTEXT_LEN, ])
-        return ((cidx, cdis), qidx)
+        randin = tf.random.normal((CONFIG.LATENT_DIM,))
+        qidx.set_shape([CONFIG.MAX_QLEN, ])
+        return ((cidx, cdis, randin), qidx)
 
     @classmethod
     def load(cls, folder):
