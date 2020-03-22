@@ -43,7 +43,7 @@ def get_model(config, lr=1e-3):
     enc = tf.keras.layers.Concatenate(name="Encoder-mixer")(
         [context_embs, rand_in, seq])
     dec = tf.keras.layers.Dense(
-        config.QVOCAB_SIZE, name="Question-Decoder")(enc)
+        config.QVOCAB_SIZE, name="Question-Decoder", activation='softmax')(enc)
     model = tf.keras.Model(
         inputs=[context_idx, context_dis, rand_in, seq_so_far],
         outputs=dec, name="SQuAD-QGAN")
