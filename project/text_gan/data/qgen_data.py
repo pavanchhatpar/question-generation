@@ -149,15 +149,15 @@ class QuestionContextPairs:
 
     def py_pad_question(self, tokens):
         tokens = tokens.numpy()
-        if tokens.shape[0] < self.config.MAX_QLEN - 2:
+        if tokens.shape[0] < self.config.MAX_QLEN - 1:
             rem = np.zeros(
-                self.config.MAX_QLEN - 2 - tokens.shape[0], dtype=np.int32)
+                self.config.MAX_QLEN - 1 - tokens.shape[0], dtype=np.int32)
             return np.concatenate(
                 [np.array([4998]), tokens,  np.array([4999]), rem])
         else:
             return np.concatenate([
                 np.array([4998]),
-                tokens[:self.config.MAX_QLEN - 2], np.array([4999])])
+                tokens[:self.config.MAX_QLEN - 1], np.array([4999])])
 
     def mapper2(self, tokenized):
         dis = tf.py_function(
@@ -175,7 +175,7 @@ class QuestionContextPairs:
             self.py_pad_question,
             inp=[qidx0], Tout=tf.int32
         )
-        qidx.set_shape([self.config.MAX_QLEN, ])
+        qidx.set_shape([self.config.MAX_QLEN + 1, ])
         feature = {
             "cidx": cidx,
             "cdis": dis,
@@ -235,41 +235,41 @@ class QuestionContextPairs:
         cdis = tf.io.parse_tensor(example['cdis'], out_type=tf.uint8)
         cdis.set_shape([CONFIG.MAX_CONTEXT_LEN, ])
         randin = tf.random.normal((CONFIG.LATENT_DIM,))
-        qidx.set_shape([CONFIG.MAX_QLEN, ])
-        return ((cidx, cdis, randin), qidx)
+        qidx.set_shape([CONFIG.MAX_QLEN+1, ])
+        return ((cidx, cdis, randin, qidx[:-1]), qidx[1:])
 
-    @staticmethod
-    def flatten_all(X, qidx):
-        cidx, cdis, randin = X
-        X1 = []
-        X2 = []
-        X3 = []
-        X4 = []
-        y = []
-        for i in range(1, qidx.shape[0]):
-            X1.append(cidx)
-            X2.append(cdis)
-            X3.append(randin)
-            X4.append(qidx[:i])
-            y.append(qidx[i])
-        X1 = tf.data.Dataset.from_tensor_slices(X1)
-        X2 = tf.data.Dataset.from_tensor_slices(X2)
-        X3 = tf.data.Dataset.from_tensor_slices(X3)
-        x4 = tf.data.Dataset.from_tensors(X4[0])
-        for x4i in X4[1:]:
-            x4 = x4.concatenate(tf.data.Dataset.from_tensors(x4i))
-        y = tf.data.Dataset.from_tensor_slices(y)
-        X = tf.data.Dataset.zip((X1, X2))
-        X = tf.data.Dataset.zip((X, X3))
-        X = tf.data.Dataset.zip((X, x4))
-        return tf.data.Dataset.zip((X, y))
+    # @staticmethod
+    # def flatten_all(X, qidx):
+    #     cidx, cdis, randin = X
+    #     X1 = []
+    #     X2 = []
+    #     X3 = []
+    #     X4 = []
+    #     y = []
+    #     for i in range(1, qidx.shape[0]):
+    #         X1.append(cidx)
+    #         X2.append(cdis)
+    #         X3.append(randin)
+    #         X4.append(qidx[:i])
+    #         y.append(qidx[i])
+    #     X1 = tf.data.Dataset.from_tensor_slices(X1)
+    #     X2 = tf.data.Dataset.from_tensor_slices(X2)
+    #     X3 = tf.data.Dataset.from_tensor_slices(X3)
+    #     x4 = tf.data.Dataset.from_tensors(X4[0])
+    #     for x4i in X4[1:]:
+    #         x4 = x4.concatenate(tf.data.Dataset.from_tensors(x4i))
+    #     y = tf.data.Dataset.from_tensor_slices(y)
+    #     X = tf.data.Dataset.zip((X1, X2))
+    #     X = tf.data.Dataset.zip((X, X3))
+    #     X = tf.data.Dataset.zip((X, x4))
+    #     return tf.data.Dataset.zip((X, y))
 
-    @staticmethod
-    def reshape_mapper(X, y):
-        X123, X4 = X
-        X12, X3 = X123
-        X1, X2 = X12
-        return ((X1, X2, X3, X4), y)
+    # @staticmethod
+    # def reshape_mapper(X, y):
+    #     X123, X4 = X
+    #     X12, X3 = X123
+    #     X1, X2 = X12
+    #     return ((X1, X2, X3, X4), y)
 
     @classmethod
     def load(cls, folder):
@@ -282,11 +282,11 @@ class QuestionContextPairs:
         train = tf.data.TFRecordDataset([TRAIN], compression_type='ZLIB')
         val = tf.data.TFRecordDataset([VAL], compression_type='ZLIB')
         train = train.map(cls.parse_ex, num_parallel_calls=-1)
-        train = train.flat_map(cls.flatten_all)\
-            .map(cls.reshape_mapper, num_parallel_calls=-1)
+        # train = train.flat_map(cls.flatten_all)\
+        #     .map(cls.reshape_mapper, num_parallel_calls=-1)
         val = val.map(cls.parse_ex, num_parallel_calls=-1)
-        val = val.flat_map(cls.flatten_all)\
-            .map(cls.reshape_mapper, num_parallel_calls=-1)
+        # val = val.flat_map(cls.flatten_all)\
+        #     .map(cls.reshape_mapper, num_parallel_calls=-1)
         inst = cls(None, create=False)
         inst.train = train
         inst.val = val

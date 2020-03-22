@@ -14,7 +14,8 @@ Master's Project course towards MSCS at Northeastern
  - Prepares an `lock.env` file. Do not edit/ delete it
 
 ## Rebuilding environment
- - You may change environment config in the process of development,
+ - You may change environment config in the process of development
+ - This includes adding a new python package to requirements.txt
  - After changing run,
     ```
     ./setup_env.sh

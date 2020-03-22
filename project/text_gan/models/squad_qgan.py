@@ -1,54 +1,86 @@
 import tensorflow as tf
 import numpy as np
 import ujson as json
+import os
+
 from ..layers.fixed_embedding import FixedEmbedding
 
-loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
-    from_logits=True, reduction='none')
 
+class QGAN:
+    def __init__(self, config, lr=1e-3, try_loading=True):
+        word_emb_mat = np.array(json.load(open(config.WORDEMBMAT, "r")))
+        # Context inputs
+        context = tf.keras.layers.Input(
+            shape=(config.MAX_CONTEXT_LEN,), name="Context-Tokens")
+        discourse_markers = tf.keras.layers.Input(
+            shape=(config.MAX_CONTEXT_LEN,), name="Context-Discourse-Markers")
+        latent_vector = tf.keras.layers.Input(
+            shape=(config.LATENT_DIM,), name="Latent-Vector")
 
-def loss_func(real, pred):
-    mask = tf.math.logical_not(tf.math.equal(real, 0))
-    loss_ = loss_object(real, pred)
+        # Encoder
+        context_emb = FixedEmbedding(
+            word_emb_mat, config.MAX_CONTEXT_LEN, name="Context-Embedding")(
+                context)
+        enc_x1 = tf.keras.layers.GRU(
+            32, return_sequences=True, name="Context-Encoder-1")(context_emb)
+        enc_x1, enc_x1_state = tf.keras.layers.GRU(
+            32, return_state=True, name="Context-Encoder-2")(enc_x1)
 
-    mask = tf.cast(mask, dtype=loss_.dtype)
-    loss_ *= mask
+        enc_x = tf.keras.layers.Multiply()([enc_x1_state, latent_vector])
 
-    return tf.reduce_mean(loss_)
+        self.encoder = tf.keras.Model(
+            [context, discourse_markers, latent_vector],
+            enc_x, name="QGAN-Enc")
 
+        # Decoder
+        question_tokens = tf.keras.layers.Input(
+            shape=(config.MAX_QLEN,), name="Question-Tokens")
+        decoder_state_input = tf.keras.layers.Input(
+            shape=(32,), name="Decoder-state")
 
-def get_model(config, lr=1e-3):
-    word_emb_mat = np.array(json.load(open(config.WORDEMBMAT, "r")))
-    rand_in = tf.keras.layers.Input(
-        shape=(config.LATENT_DIM,), name="Latent-input")
-    seq_so_far = tf.keras.layers.Input(
-        shape=(None,), name="Question-so-far")
-    seq = tf.keras.layers.Embedding(
-        config.QVOCAB_SIZE, 16, name="Ques-embs")(seq_so_far)
-    seq = tf.keras.layers.GRU(
-        16, return_sequences=True, name="GRU-qencoder-1")(seq)
-    seq = tf.keras.layers.GRU(
-        16, name="GRU-qencoder-2")(seq)
-    context_idx = tf.keras.layers.Input(shape=(256,), name="Context-IDs")
-    context_dis = tf.keras.layers.Input(shape=(256,), name="Discourse-markers")
-    context_embs = FixedEmbedding(
-        word_emb_mat, 256, name="Glove-embeddings")(context_idx)
-    context_embs = tf.keras.layers.GRU(
-        128, return_sequences=True, name="GRU-encoder-1")(context_embs)
-    context_embs = tf.keras.layers.GRU(32, name="GRU-encoder-2")(context_embs)
-    context_dis_enc = tf.keras.layers.Dense(
-        32, activation='tanh', name="Discourse-encoder-1")(context_dis)
-    context_dis_enc = tf.keras.layers.Dense(
-        32, activation='tanh', name="Discourse-encoder-2")(context_dis_enc)
-    enc = tf.keras.layers.Concatenate(name="Encoder-mixer")(
-        [context_embs, rand_in, seq])
-    dec = tf.keras.layers.Dense(
-        config.QVOCAB_SIZE, name="Question-Decoder", activation='softmax')(enc)
-    model = tf.keras.Model(
-        inputs=[context_idx, context_dis, rand_in, seq_so_far],
-        outputs=dec, name="SQuAD-QGAN")
-    model.compile(
-        tf.keras.optimizers.Adam(lr),
-        loss_object
-    )
-    return model
+        question_emb = tf.keras.layers.Embedding(
+            config.QVOCAB_SIZE, 32, name="Question-Embedding")(question_tokens)
+        decoder_1 = tf.keras.layers.GRU(
+            32, return_sequences=True, name="GRU-Decoder-1")
+        decoder_2 = tf.keras.layers.GRU(
+            32, return_sequences=True, return_state=True, name="GRU-Decoder-2")
+        decoder_dense = tf.keras.layers.Dense(
+            config.QVOCAB_SIZE, activation='softmax', name="Dense-Decoder")
+
+        dec_ypred = decoder_1(question_emb, initial_state=decoder_state_input)
+        dec_ypred, dec_ypred_state = decoder_2(dec_ypred)
+        self.decoder = tf.keras.Model(
+            [question_tokens, decoder_state_input],
+            [dec_ypred, dec_ypred_state], name="QGAN-Dec")
+
+        # Training model
+        dec_y = decoder_1(question_emb, initial_state=enc_x)
+        dec_y, _ = decoder_2(dec_y)
+        y = decoder_dense(dec_y)
+        self.model = tf.keras.Model(
+            [context, discourse_markers, latent_vector, question_tokens],
+            y, name="QGAN-Trainer")
+
+        if os.path.exists(config.MODELSAVELOC):
+            self.model.load_weights(config.MODELSAVELOC)
+        else:
+            self.model.compile(
+                tf.keras.optimizers.Adam(lr),
+                'sparse_categorical_crossentropy'
+            )
+
+        self.config = config
+
+    def fit(self, dataset, epochs):
+        self.model.fit(dataset, epochs=epochs)
+
+    def save(self):
+        self.model.save_weights(self.config.MODELSAVELOC)
+
+    def predict(self, dataset):
+        # enc_state = self.encoder.predict(dataset)
+        # target = np.array([4998])
+        pass
+
+    def print_model(self):
+        pass
