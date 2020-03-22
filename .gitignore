@@ -5,3 +5,4 @@
 *egg-info
 jupyter.password
 **/__pycache__
+.env

@@ -2,18 +2,20 @@
 Master's Project course towards MSCS at Northeastern
 
 ## Environment setup
-
-```bash
-./setup_env.sh
-```
-
- - Creates a relocatable virtual environment that can
-be mounted inside any docker container
+ - Copy `sample.env` to `.env` and enter appropriate values for the variables
+ - A brief description of each is provided as a comment in that file
+ - Post that run,
+   ```bash
+   ./setup_env.sh
+   ```
+ - Uses env file to configure project environment
  - Builds required docker images
- - Sets a random password for accessing jupyter at 
- `jupyter.password`
- - You may change it. After changing run,
+ - Makes a python environment and installes required packages in it
+ - Prepares an `lock.env` file. Do not edit/ delete it
+
+## Rebuilding environment
+ - You may change environment config in the process of development,
+ - After changing run,
     ```
-    ./remove_images.sh
-    ./build_images.sh
+    ./setup_env.sh
     ```
