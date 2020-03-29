@@ -14,6 +14,7 @@ class _Config:
     QWORD2IDX = "/tf/data/squad/qword2idx.json"
     DISCOURSEWORDS = "/tf/data/lexicon_rst_pdtb"
     WORDEMBMAT = "/tf/data/squad/word_emb.json"
+    QWORDEMBMAT = "/tf/data/squad/qword_emb.json"
     SAVELOC = "/tf/data/processed"
     MODELSAVELOC = "/tf/data/model.tf"
     MAX_CONTEXT_LEN = 256  # closest power of 2 from 95 %tile length
@@ -237,39 +238,6 @@ class QuestionContextPairs:
         randin = tf.random.normal((CONFIG.LATENT_DIM,))
         qidx.set_shape([CONFIG.MAX_QLEN+1, ])
         return ((cidx, cdis, randin, qidx[:-1]), qidx[1:])
-
-    # @staticmethod
-    # def flatten_all(X, qidx):
-    #     cidx, cdis, randin = X
-    #     X1 = []
-    #     X2 = []
-    #     X3 = []
-    #     X4 = []
-    #     y = []
-    #     for i in range(1, qidx.shape[0]):
-    #         X1.append(cidx)
-    #         X2.append(cdis)
-    #         X3.append(randin)
-    #         X4.append(qidx[:i])
-    #         y.append(qidx[i])
-    #     X1 = tf.data.Dataset.from_tensor_slices(X1)
-    #     X2 = tf.data.Dataset.from_tensor_slices(X2)
-    #     X3 = tf.data.Dataset.from_tensor_slices(X3)
-    #     x4 = tf.data.Dataset.from_tensors(X4[0])
-    #     for x4i in X4[1:]:
-    #         x4 = x4.concatenate(tf.data.Dataset.from_tensors(x4i))
-    #     y = tf.data.Dataset.from_tensor_slices(y)
-    #     X = tf.data.Dataset.zip((X1, X2))
-    #     X = tf.data.Dataset.zip((X, X3))
-    #     X = tf.data.Dataset.zip((X, x4))
-    #     return tf.data.Dataset.zip((X, y))
-
-    # @staticmethod
-    # def reshape_mapper(X, y):
-    #     X123, X4 = X
-    #     X12, X3 = X123
-    #     X1, X2 = X12
-    #     return ((X1, X2, X3, X4), y)
 
     @classmethod
     def load(cls, folder):

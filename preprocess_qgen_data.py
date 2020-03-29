@@ -1,5 +1,4 @@
-from text_gan.data.qgen_data import QuestionContextPairs
-from text_gan.data.qgen_data import CONFIG
+from text_gan.data import QuestionContextPairs, CONFIG
 
 
 def main():
