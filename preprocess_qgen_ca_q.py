@@ -1,4 +1,4 @@
-from text_gan.data.qgen_new import CA_QPair
+from text_gan.data.qgen_ca_q import CA_QPair
 
 
 def main():

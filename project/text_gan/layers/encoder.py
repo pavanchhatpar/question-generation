@@ -8,7 +8,7 @@ class Encoder(tf.keras.layers.Layer):
         super(Encoder, self).__init__(**kwargs)
         self.config = config
         self.word_emb_mat = word_emb_mat
-    
+
     def build(self, input_shape):
         self.context_embedding = FixedEmbedding(
             self.word_emb_mat,

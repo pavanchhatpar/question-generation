@@ -63,8 +63,9 @@ class AttnGen:
         while counter < self.config.MAX_QLEN:
             y, h = self.decoder.predict([target, states_value, enc_op])
             y = np.reshape(y, [input[0].shape[0], self.config.QVOCAB_SIZE])
-            sampled_token_index = tf.random.categorical(
-                y, num_samples=1, dtype=tf.int32)
+            sampled_token_index = tf.argmax(
+                y, output_type=tf.int32, axis=1)
+            sampled_token_index = [sampled_token_index]
             # sampled_word = self.idx2qword[sampled_token_index]
             # if op is None:
             #     op =

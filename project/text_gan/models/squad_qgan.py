@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import ujson as json
-import os
 
 from ..layers.fixed_embedding import FixedEmbedding
 
@@ -77,8 +76,8 @@ class QGAN:
         if try_loading:
             self.model.load_weights(config.MODELSAVELOC)
 
-    def fit(self, dataset, epochs):
-        return self.model.fit(dataset, epochs=epochs)
+    def fit(self, dataset, epochs, **kwargs):
+        return self.model.fit(dataset, epochs=epochs, **kwargs)
 
     def save(self):
         self.model.save_weights(self.config.MODELSAVELOC)
