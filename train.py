@@ -5,7 +5,7 @@ import argparse
 
 from text_gan.data.qgen_data import QuestionContextPairs, CONFIG
 from text_gan.data.qgen_ca_q import CA_QPair, CA_Qcfg
-from text_gan.models import AttnGen, QGAN, CA_Q_AttnQGen
+from text_gan.models import AttnGen, QGAN, CA_Q_AttnQGen, CAZ_Q_Attn
 
 # tf.debugging.set_log_device_placement(True)
 
@@ -13,6 +13,7 @@ MODELS = [
     "qgen",
     "attn-qgen",
     "ca-q-attn-qgen",
+    "caz-q-attn"
 ]
 
 
@@ -67,17 +68,17 @@ def qgen():
             monitor='loss', verbose=1, save_weights_only=True)
     ]
     model.fit(train, epochs=100, callbacks=callbacks)
-    model.save("/tf/data/qgen/model/model.tf")
+    model.save()
 
 
 def ca_q_attn_qgen():
     data = CA_QPair.load()
-    train = data.train.take(10000).batch(32)
+    train = data.train.take(500).batch(8)
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
     train = train.apply(to_gpu)
     with tf.device("/gpu:0"):
         train = train.prefetch(2)
-
+    
     # with open(CA_Qcfg.CWORD2IDX, 'r') as f:
     #     cword2idx = json.load(f)
     # with open(CA_Qcfg.QWORD2IDX, 'r') as f:
@@ -91,17 +92,49 @@ def ca_q_attn_qgen():
             monitor='loss', save_weights_only=True)
     ]
     model.model.compile(
-        tf.keras.optimizers.Adam(1e-2),
+        tf.keras.optimizers.Adam(1e-3),
         'sparse_categorical_crossentropy'
     )
-    model.fit(train, epochs=200, callbacks=callbacks)
-    model.save("/tf/data/ca-q-attn-qgen/model/model.tf")
+    try:
+        model.fit(train, epochs=500, callbacks=callbacks)
+        model.save("/tf/data/ca-q-attn-qgen/model/model.tf")
+    except KeyboardInterrupt:
+        print("Saving model trained so far")
+        model.save("/tf/data/ca-q-attn-qgen/model/model.tf")
+
+
+def caz_q_attn():
+    RNG_SEED = 11
+    data = CA_QPair.load()
+    data = data.train.shuffle(
+        buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
+    to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
+    train = data.skip(1000)\
+        .shuffle(buffer_size=10000, seed=RNG_SEED)\
+        .batch(8).apply(to_gpu)
+    val = data.take(1000).batch(1000).apply(to_gpu)
+    with tf.device("/gpu:0"):
+        train = train.prefetch(2)
+        val = val.prefetch(1)
+
+    # with open(CA_Qcfg.CWORD2IDX, 'r') as f:
+    #     cword2idx = json.load(f)
+    # with open(CA_Qcfg.QWORD2IDX, 'r') as f:
+    #     qword2idx = json.load(f)
+
+    cidx2emb = np.load(CA_Qcfg.CIDX2EMB)
+    qidx2emb = np.load(CA_Qcfg.QIDX2EMB)
+    model = CAZ_Q_Attn(cidx2emb, qidx2emb)
+    model.fit(
+        train, epochs=500, lr=1e-3,
+        save_loc="/tf/data/caz-q-attn/", eval_set=val)
 
 
 MODEL_METHODS = {
     "qgen": qgen,
     "attn-qgen": attn_qgen,
     "ca-q-attn-qgen": ca_q_attn_qgen,
+    "caz-q-attn": caz_q_attn
 }
 
 

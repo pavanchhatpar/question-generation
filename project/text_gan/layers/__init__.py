@@ -9,5 +9,5 @@ __all__ = [
     "Encoder",
     "Decoder",
     "CA_Q_Encoder",
-    "CA_Q_Decoder"
+    "CA_Q_Decoder",
 ]

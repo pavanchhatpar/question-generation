@@ -22,6 +22,11 @@ class _CA_Qcfg:
     START_TOKEN = b'<S>'
     END_TOKEN = b'EOS'
 
+    UNK_ID = 1
+    PAD_ID = 0
+    START_ID = 2
+    END_ID = 3
+
     QVOCAB_SIZE = 5000
     QWORD2IDX = '/tf/data/embeddings/qword2idx.json'
     QIDX2EMB = '/tf/data/embeddings/qidx2emb.npy'

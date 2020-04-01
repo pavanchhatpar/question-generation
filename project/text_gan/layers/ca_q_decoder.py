@@ -13,7 +13,7 @@ class CA_Q_Decoder(layers.Layer):
         self.gru = layers.GRU(
             32, return_sequences=True, return_state=True, name="GRU-Decoder")
         self.decode_attention = layers.AdditiveAttention(
-            causal=True, name="Decoder-Attention")
+            causal=True, name="Decoder-Attention", use_scale=False)
         self.dense_dec = layers.Dense(
             CA_Qcfg.QVOCAB_SIZE, name="Decoder-Dense", activation='softmax')
 
@@ -23,5 +23,6 @@ class CA_Q_Decoder(layers.Layer):
         q_int_dec, st = self.gru(q_embs, initial_state=s0)
         # inputs = [query:Tensor, value:Tensor]
         q_dec = self.decode_attention(inputs=[q_int_dec, hd])
-        y = self.dense_dec(q_int_dec)
+        q_dec = tf.multiply(q_dec, tf.expand_dims(st, 1))
+        y = self.dense_dec(q_dec)
         return y, st

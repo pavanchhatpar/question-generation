@@ -19,7 +19,7 @@ class CA_Q_Encoder(layers.Layer):
         self.bigru_2 = layers.Bidirectional(layers.GRU(
                 16, return_sequences=True,
                 return_state=True, name="Context-Encoder-2"))
-        self.dense_enc = layers.Dense(32, activation='tanh')
+        self.dense_enc = layers.Dense(32)
 
     def call(self, inputs):
         cidx, aidx = inputs

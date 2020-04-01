@@ -3,7 +3,7 @@ matplotlib==3.1.2
 graphviz==0.13.2
 pydotplus==2.0.2
 flake8==3.7.9
-spacy==2.2.4
+nltk==3.4.5
 ujson==2.0.2
 tensorflow_text==2.1.1
 pandas==1.0.2

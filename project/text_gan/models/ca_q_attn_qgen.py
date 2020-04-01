@@ -60,9 +60,10 @@ class CA_Q_AttnQGen:
         while counter < CA_Qcfg.QSEQ_LEN:
             y, h = self.decoder.predict([target, states_value, enc_op])
             y = np.reshape(y, [input[0].shape[0], CA_Qcfg.QVOCAB_SIZE])
+            # sampled_token_index = tf.multinomial(predictions, num_samples=1)
             sampled_token_index = tf.argmax(
-                y, output_type=tf.int32, axis=1)
-            sampled_token_index = [sampled_token_index]
+                y[0], output_type=tf.int32)
+            sampled_token_index = tf.expand_dims([sampled_token_index], 0)
             op = tf.concat([op, sampled_token_index], 1)
             target = sampled_token_index
             states_value = h
@@ -74,7 +75,7 @@ class CA_Q_AttnQGen:
     def predict(self, dataset):
         ret_val = None
         for X, y in dataset:
-            op = self._decode_sequence([X[0], X[1], X[2]])
+            op = self._decode_sequence([X[0], X[1]])
             if ret_val is None:
                 ret_val = op
                 continue
