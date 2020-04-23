@@ -31,7 +31,7 @@ class CAZ_Q_Attn:
             logits=y_pred, labels=y_true)  # (batch, 1)
 
         # mask PAD token
-        mask = tf.math.logical_not(tf.math.equal(y_true, CA_Qcfg.PAD_ID))  
+        mask = tf.math.logical_not(tf.math.equal(y_true, CA_Qcfg.PAD_ID))
         mask = tf.cast(mask, dtype=cross_ent.dtype)
         cross_ent *= mask  # (batch, 1)
 
@@ -41,21 +41,20 @@ class CAZ_Q_Attn:
 
         return -tf.reduce_mean(logpy_z + logpz - logqz_y)
 
-    @staticmethod
     @tf.function
-    def train_step(X, y, enc_hidden, encoder, decoder, optimizer):
+    def train_step(self, X, y, enc_hidden):
         cidx, aidx, _ = X
         loss = 0
 
         with tf.GradientTape() as tape:
-            s0, hd, mean, logvar, z = encoder(cidx, aidx, enc_hidden)
+            s0, hd, mean, logvar, z = self.encoder(cidx, aidx, enc_hidden)
 
-            START_TOKEN_ID = 2
+            START_TOKEN_ID = CA_Qcfg.START_ID
             BATCH_SIZE = cidx.shape[0]
             qidx = tf.expand_dims([START_TOKEN_ID] * BATCH_SIZE, 1)
 
             for yi in range(y.shape[1]):
-                ypred, st = decoder(qidx, s0, hd)
+                ypred, s0 = self.decoder(qidx, s0, hd)
 
                 loss += CAZ_Q_Attn.lossfn(y[:, yi], ypred, mean, logvar, z)
 
@@ -63,19 +62,21 @@ class CAZ_Q_Attn:
 
             batch_loss = loss/y.shape[1]
 
-            vars = encoder.trainable_variables + decoder.trainable_variables
+            vars = (self.encoder.trainable_variables
+                    + self.decoder.trainable_variables)
 
             gradients = tape.gradient(loss, vars)
-            optimizer.apply_gradients(zip(gradients, vars))
+            self.optimizer.apply_gradients(zip(gradients, vars))
 
         return batch_loss
 
     def fit(
-        self, dataset, epochs, lr, save_loc, eval_set=None, eval_interval=5):
-        optimizer = tf.keras.optimizers.Adam(lr)
+            self, dataset, epochs, lr,
+            save_loc, eval_set=None, eval_interval=10):
+        self.optimizer = tf.keras.optimizers.Adam(lr)
         save_prefix = os.path.join(save_loc, "ckpt")
         ckpt_saver = tf.train.Checkpoint(
-            optimizer=optimizer,
+            optimizer=self.optimizer,
             encoder=self.encoder,
             decoder=self.decoder)
         for epoch in range(epochs):
@@ -85,9 +86,7 @@ class CAZ_Q_Attn:
                 for X, y in pbar.iterable:
                     enc_hidden = self.encoder.initialize_hidden_size(
                         y.shape[0])
-                    bloss = CAZ_Q_Attn.train_step(
-                        X, y, enc_hidden, self.encoder,
-                        self.decoder, optimizer)
+                    bloss = self.train_step(X, y, enc_hidden)
                     pbar.update(1)
                     i += 1
                     eloss = (eloss*(i-1) + bloss)/i
@@ -105,7 +104,7 @@ class CAZ_Q_Attn:
                 ckpt_saver.save(file_prefix=save_prefix)
 
     @tf.function
-    def _decode_sequence(self, cidx, aidx, encoder, decoder):
+    def _decode_sequence(self, cidx, aidx):
         # Encode the input as state vectors.
         enc_hidden = self.encoder.initialize_hidden_size(cidx.shape[0])
         s0, hd, mean, logvar, z = self.encoder(cidx, aidx, enc_hidden)
@@ -130,11 +129,10 @@ class CAZ_Q_Attn:
             #     break
         return op  # (batch, 20)
 
-    def _eval(self, dataset, encoder, decoder):
+    def predict(self, dataset):
         ret_val = None
         for X, y in dataset:
-            op = self._decode_sequence(
-                X[0], X[1], encoder, decoder)
+            op = self._decode_sequence(X[0], X[1])
             if ret_val is None:
                 ret_val = op
                 continue
@@ -150,9 +148,6 @@ class CAZ_Q_Attn:
         )
         ckpt.restore(
             tf.train.latest_checkpoint(save_loc)).expect_partial()
-
-    def predict(self, dataset):
-        return self._eval(dataset, self.encoder, self.decoder)
 
     def get_numpy_scores(self, hypo, refs):
         fhypo = []
@@ -180,7 +175,7 @@ class CAZ_Q_Attn:
             self.get_numpy_scores, [hypo, refs], (tf.float32, tf.float32))
 
     def evaluate(self, dataset):
-        hypo = self._eval(dataset, self.encoder, self.decoder)
+        hypo = self.predict(dataset)
         refs = None
         for X, y in dataset:
             if refs is None:

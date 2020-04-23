@@ -1,3 +1,4 @@
+#!/bin/bash
 if [ ! -f "lock.env" ]; then
     echo "run ./setup_env.sh first"
     exit 1

@@ -34,7 +34,7 @@ docker build --build-arg JUPYTER_PASSWD --target nb -t cs8674/nb:latest .
 
 python3 -m venv $PYTHON_VENV_PATH
 source $PYTHON_VENV_PATH/bin/activate\
-    && pip install --upgrade pip\
+    && pip install --upgrade pip setuptools\
     && pip install --no-cache-dir -r requirements.txt
 
 cp ".env" "lock.env"

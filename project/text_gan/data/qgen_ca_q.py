@@ -14,7 +14,7 @@ from .squad2 import Squad2  # noqa
 @read_only('*')
 class _CA_Qcfg:
     LOC = '/tf/data/processed'
-    GLOVE_EMBS = '/tf/data/embeddings/glove.840B.300d.txt'
+    GLOVE_EMBS = '/tf/data/features/glove/glove.840B.300d.txt'
     EMBS_DIM = 300
 
     UNK_TOKEN = b'UNKNOWN'
@@ -28,12 +28,12 @@ class _CA_Qcfg:
     END_ID = 3
 
     QVOCAB_SIZE = 5000
-    QWORD2IDX = '/tf/data/embeddings/qword2idx.json'
-    QIDX2EMB = '/tf/data/embeddings/qidx2emb.npy'
+    QWORD2IDX = '/tf/data/features/glove/qword2idx.json'
+    QIDX2EMB = '/tf/data/features/glove/qidx2emb.npy'
     QSEQ_LEN = 20  # rounding up 95th percentile
 
-    CWORD2IDX = '/tf/data/embeddings/cword2idx.json'
-    CIDX2EMB = '/tf/data/embeddings/cidx2emb.npy'
+    CWORD2IDX = '/tf/data/features/glove/cword2idx.json'
+    CIDX2EMB = '/tf/data/features/glove/cidx2emb.npy'
     CSEQ_LEN = 250  # rounding up 95th percentile
 
 
