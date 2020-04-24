@@ -235,7 +235,7 @@ def canpz_q():
             lambda w: w != cembs.PAD, context)
         ques = qembs.inverse_transform([pred[i].numpy()])[0]
         print(f"Context:- {' '.join(context)}")
-        print(f"Answer:- {ans}")
+        print(f"Answer:- {X[1]}")
         print(f"OG Question:- {' '.join(ogques)}")
         print(f"Question:- {' '.join(ques)}")
         print(f"Attention Weights:- {attn_weights[i].numpy()}")

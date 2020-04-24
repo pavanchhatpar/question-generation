@@ -1,9 +1,11 @@
 from .embedding import Embedding
+from ..config import cfg
 
 import numpy as np
 from tqdm import tqdm
 import logging
 import pickle
+import os
 
 
 class FastText(Embedding):
@@ -20,14 +22,21 @@ class FastText(Embedding):
             self.n = len(self.data)
             self.d = 300
         else:
-            with open(embeddings_file, 'r') as fin:
-                self.n, self.d = map(int, fin.readline().split())
-                self.data = {}
-                for line in tqdm(fin, desc='Loading vectors'):
-                    tokens = line.rstrip().split(' ')
-                    self.data[tokens[0].strip()] = np.array(
-                        tokens[1:], dtype=np.float32)
-        self._spl_token_report()
+            if os.path.exists(cfg.EMBS_CACHE):
+                with open(cfg.EMBS_CACHE, "rb") as f:
+                    self.data = pickle.load(f)
+                self.n = len(self.data)
+                self.d = 300
+            else:
+                with open(embeddings_file, 'r') as fin:
+                    self.n, self.d = map(int, fin.readline().split())
+                    self.data = {}
+                    for line in tqdm(fin, desc='Loading vectors'):
+                        tokens = line.rstrip().split(' ')
+                        self.data[tokens[0].strip()] = np.array(
+                            tokens[1:], dtype=np.float32)
+                self._spl_token_report()
+                self.cache()
         self.seq_len = sequence_len
 
     @classmethod

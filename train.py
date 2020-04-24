@@ -3,6 +3,8 @@ import numpy as np
 import ujson as json
 import argparse
 import logging
+import shutil
+import os
 
 from text_gan.data.qgen_data import QuestionContextPairs, CONFIG
 from text_gan.data.qgen_ca_q import CA_QPair, CA_Qcfg
@@ -133,9 +135,10 @@ def caz_q_attn():
     cidx2emb = np.load(CA_Qcfg.CIDX2EMB)
     qidx2emb = np.load(CA_Qcfg.QIDX2EMB)
     model = CAZ_Q_Attn(cidx2emb, qidx2emb)
+    loc = "/tf/data/caz-q-attn/"
     model.fit(
         train, epochs=700, lr=5e-3,
-        save_loc="/tf/data/caz-q-attn/", eval_set=val)
+        save_loc=loc, eval_set=val)
 
 
 def canpz_q():
@@ -144,12 +147,12 @@ def canpz_q():
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
-    train = data.skip(1000).take(2000)\
+    train = data.skip(1000).take(10000)\
         .shuffle(buffer_size=100, seed=RNG_SEED)\
-        .batch(16).apply(to_gpu)
+        .batch(128).apply(to_gpu)
     val = data.take(1000).batch(1000).apply(to_gpu)
     with tf.device("/gpu:0"):
-        train = train.prefetch(2)
+        train = train.prefetch(1)
         val = val.prefetch(1)
 
     if cfg.EMBS_TYPE == 'glove':
@@ -166,9 +169,12 @@ def canpz_q():
     pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
 
     model = CANPZ_Q(cembs, ner, pos, qembs)
+    loc = "/tf/data/canpz_q/"
+    if os.path.exists(loc):
+        shutil.rmtree(loc)
     model.fit(
         train, epochs=100,
-        save_loc="/tf/data/canpz_q/", eval_set=val)
+        save_loc=loc, eval_set=val)
 
 
 MODEL_METHODS = {

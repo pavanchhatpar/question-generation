@@ -48,7 +48,9 @@ class CANPZ_Q_Encoder(Model):
         aidx = tf.cast(tf.expand_dims(aidx, -1), tf.float32)
 
         # (, h)
-        ha = tf.reduce_mean(tf.multiply(hd, aidx), 1)
+        ha = tf.reduce_sum(tf.multiply(hd, aidx), 1)
+        asum = tf.maximum(tf.reduce_sum(aidx, 1), 1)
+        ha = ha / asum
 
         # (, h*2)
         meanlogvar = tf.concat([hD, ha], -1)

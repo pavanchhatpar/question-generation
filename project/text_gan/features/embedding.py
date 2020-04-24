@@ -2,6 +2,7 @@ from abc import ABC
 from scipy.spatial.distance import cosine
 from collections import defaultdict
 import pickle
+import os
 import numpy as np
 
 from ..config import cfg
@@ -89,8 +90,8 @@ class Embedding(ABC):
             self.vocab[token] = i
             i += 1
         self.inverse = {}
-        for k, v in vocab.items():
-            self.inverse[v] = k
+        for token, idx in self.vocab.items():
+            self.inverse[idx] = token
 
     def transform(self, ntokens, pad=True, end=True):
         nids = []
@@ -130,3 +131,7 @@ class Embedding(ABC):
         for token, idx in self.vocab.items():
             matrix[idx] = self.data.get(token, self.data[self.UNK])
         return matrix
+
+    def cache(self):
+        with open(cfg.EMBS_CACHE, "wb") as f:
+            pickle.dump(self.data, f, protocol=4)

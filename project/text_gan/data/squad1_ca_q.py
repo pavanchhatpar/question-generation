@@ -40,7 +40,7 @@ class Squad1_CA_Q:
     def parse_ex(self, example_proto):
         feature_description = {
             'cidx': tf.io.FixedLenFeature([], tf.string, default_value=''),
-            'aidx': tf.io.FixedLenFeature([], tf.string, default_value=''),
+            'ans': tf.io.FixedLenFeature([], tf.string, default_value=''),
             'qidx': tf.io.FixedLenFeature([], tf.string, default_value=''),
             'ner': tf.io.FixedLenFeature([], tf.string, default_value=''),
             'pos': tf.io.FixedLenFeature([], tf.string, default_value=''),
@@ -51,40 +51,37 @@ class Squad1_CA_Q:
         cidx.set_shape([cfg.CSEQ_LEN, ])
         qidx = tf.io.parse_tensor(example['qidx'], out_type=tf.int32)
         qidx.set_shape([cfg.QSEQ_LEN, ])
-        aidx = tf.io.parse_tensor(example['aidx'], out_type=tf.uint8)
-        aidx.set_shape([cfg.CSEQ_LEN, ])
+        ans = tf.io.parse_tensor(example['ans'], out_type=tf.uint8)
+        ans.set_shape([cfg.CSEQ_LEN, ])
         ner = tf.io.parse_tensor(example['ner'], out_type=tf.uint8)
         ner.set_shape([cfg.CSEQ_LEN, ])
         pos = tf.io.parse_tensor(example['pos'], out_type=tf.uint8)
         pos.set_shape([cfg.CSEQ_LEN, ])
-        return ((cidx, aidx, ner, pos), qidx)
+        return ((cidx, ans, ner, pos), qidx)
 
-    def tokenize_context(self, x):
-        return self.nlp(x['context'].decode('utf-8'))
+    def tokenize_example(self, x):
+        context, question, ans = list(self.nlp.pipe([
+            x['context'].decode('utf-8'),
+            x['question'].decode('utf-8'),
+            x['answers']['text'][0].decode('utf-8')
+        ]))
+        del x
+        return (context, question, ans)
 
-    def tokenize_question(self, x):
-        return self.nlp(x['question'].decode('utf-8'))
-
-    def tokenize_answer(self, x):
-        return self.nlp(x['answers']['text'][0].decode('utf-8'))
-
-    def tag_answer(self, inp):
-        cidx, aidx = inp
-        aidx = np.array(aidx, dtype=np.uint8)
-        if aidx.shape[0] == 0:
-            return np.zeros(cidx.shape, dtype=np.int32)
-        size = aidx.shape[0]
-        shape = cidx.shape[:-1] + (cidx.shape[-1] - size + 1, size)
-        strides = cidx.strides + (cidx.strides[-1],)
-        windows = np.lib.stride_tricks.as_strided(
-            cidx, shape=shape, strides=strides)
-        answer = np.all(windows == aidx, axis=1)
-        aidx = np.zeros(cidx.shape, dtype=np.int32)
-        if answer.nonzero()[0].shape[0] != 0:
-            start_index = answer.nonzero()[0][0]
-            for i in range(size):
-                aidx[start_index+i] = 1
-        return aidx
+    def substrSearch(self, ans, context):
+        i = 0
+        j = 0
+        s = -1
+        while i < len(context) and j < len(ans):
+            if context[i].text == ans[j].text:
+                s = i
+                i += 1
+                j += 1
+            else:
+                i += 1
+                j = 0
+                s = -1
+        return s, j
 
     def preprocess(self):
         self.logger.info("****Preparing dataset****")
@@ -106,83 +103,90 @@ class Squad1_CA_Q:
 
         mr = MapReduce()
 
-        train_context = train.as_numpy_iterator()
-        test_context = test.as_numpy_iterator()
+        self.logger.info("****Preparing training split****")
+        train_iter = train.as_numpy_iterator()
+        train_tokenized = mr.process(self.tokenize_example, train_iter)
+        self.logger.info("****Tokenized training split****")
 
-        train_context = mr.process(self.tokenize_context, train_context)
-        test_context = mr.process(self.tokenize_context, test_context)
-        self.logger.info("****Tokenized context****")
-        cembs.fit(train_context, min_freq=None)
-        train_cembs = cembs.transform(train_context)
-        test_cembs = cembs.transform(test_context)
+        train_context = []
+        train_question = []
+        train_ans = []
+        for context, ques, ans in train_tokenized:
+            ans_start, al = self.substrSearch(ans, context)
+            if len(ques) >= 20 or ans_start == -1 or ans_start + al >= 250:
+                continue
+            train_context.append(context)
+            train_question.append(ques)
+            ans = np.zeros(cfg.CSEQ_LEN, dtype=np.uint8)
+            ans[ans_start:ans_start+al] = 1
+            train_ans.append(ans)
+        self.logger.info("****Filtered training split****")
+
+        cembs.fit(train_context)
+        qembs.fit(train_question, min_freq=2)
+        cembs.save(cfg.EMBS_CVOCAB)
+        qembs.save(cfg.EMBS_QVOCAB)
+        train_cidx = cembs.transform(train_context)
         train_ner = ner.transform(train_context)
-        test_ner = ner.transform(test_context)
         train_pos = pos.transform(train_context)
-        test_pos = pos.transform(test_context)
-        self.logger.info("****Prepared context****")
-        self.logger.debug(f"Memory freed: {gc.collect()}")
-
-        train_question = train.as_numpy_iterator()
-        test_question = test.as_numpy_iterator()
-
-        train_question = mr.process(self.tokenize_question, train_question)
-        test_question = mr.process(self.tokenize_question, test_question)
-        self.logger.info("****Tokenized question****")
-        qembs.fit(train_question, min_freq=None)
-        train_qembs = qembs.transform(train_question)
-        test_qembs = qembs.transform(test_question)
-        self.logger.info("****Prepared question****")
-        self.logger.debug(f"Memory freed: {gc.collect()}")
-
-        train_answer = train.as_numpy_iterator()
-        test_answer = test.as_numpy_iterator()
-
-        train_answer = mr.process(self.tokenize_answer, train_answer)
-        test_answer = mr.process(self.tokenize_answer, test_answer)
-        self.logger.info("****Tokenized answer****")
-
-        train_aembs = cembs.transform(train_answer)
-        test_aembs = cembs.transform(test_answer)
-
-        train_aembs = mr.process(
-            self.tag_answer, zip(train_cembs, train_aembs))
-        train_aembs = np.array(train_aembs, dtype=np.uint8)
-        test_aembs = mr.process(self.tag_answer, zip(test_cembs, test_aembs))
-        test_aembs = np.array(test_aembs, dtype=np.uint8)
-        self.logger.info("****Prepared answer****")
-        self.logger.debug(f"Memory freed: {gc.collect()}")
+        train_qidx = qembs.transform(train_question)
 
         cseq = cfg.CSEQ_LEN
         qseq = cfg.QSEQ_LEN
 
         def gen():
-            for cidx, aidx, qidx, ner, pos in zip(
-                    train_cembs, train_aembs,
-                    train_qembs, train_ner, train_pos):
-                yield (cidx, aidx, qidx, ner, pos)
+            for cidx, ner, pos, qidx, ans in zip(
+                    train_cidx, train_ner, train_pos,
+                    train_qidx, train_ans):
+                yield (cidx, ans, qidx, ner, pos)
 
         train_dataset = tf.data.Dataset.from_generator(
             gen,
             (tf.int32, tf.uint8, tf.int32, tf.uint8, tf.uint8),
             (
                 tf.TensorShape([cseq]), tf.TensorShape([cseq]),
-                tf.TensorShape([qseq]), tf.TensorShape([cseq]),
-                tf.TensorShape([cseq]))
+                tf.TensorShape([qseq]), tf.TensorShape([cseq]), tf.TensorShape([cseq]))
         )
 
+        self.logger.info("****Preparing test split****")
+        test_iter = test.as_numpy_iterator()
+        test_tokenized = mr.process(self.tokenize_example, test_iter)
+        self.logger.info("****Tokenized test split****")
+
+        test_context = []
+        test_question = []
+        test_ans = []
+        for context, ques, ans in test_tokenized:
+            ans_start, al = self.substrSearch(ans, context)
+            if len(ques) >= 20 or ans_start == -1 or ans_start + al >= 250:
+                continue
+            test_context.append(context)
+            test_question.append(ques)
+            ans = np.zeros(cfg.CSEQ_LEN, dtype=np.uint8)
+            ans[ans_start:ans_start+al] = 1
+            test_ans.append(ans)
+        self.logger.info("****Filtered test split****")
+
+        test_cidx = cembs.transform(test_context)
+        test_ner = ner.transform(test_context)
+        test_pos = pos.transform(test_context)
+        test_qidx = qembs.transform(test_question)
+
+        cseq = cfg.CSEQ_LEN
+        qseq = cfg.QSEQ_LEN
+
         def gen():
-            for cidx, aidx, qidx, ner, pos in zip(
-                    test_cembs, test_aembs,
-                    test_qembs, test_ner, test_pos):
-                yield (cidx, aidx, qidx, ner, pos)
+            for cidx, ner, pos, qidx, ans in zip(
+                    test_cidx, test_ner, test_pos,
+                    test_qidx, test_ans):
+                yield (cidx, ans, qidx, ner, pos)
 
         test_dataset = tf.data.Dataset.from_generator(
             gen,
             (tf.int32, tf.uint8, tf.int32, tf.uint8, tf.uint8),
             (
                 tf.TensorShape([cseq]), tf.TensorShape([cseq]),
-                tf.TensorShape([qseq]), tf.TensorShape([cseq]),
-                tf.TensorShape([cseq]))
+                tf.TensorShape([qseq]), tf.TensorShape([cseq]), tf.TensorShape([cseq]))
         )
 
         train_dataset = train_dataset.map(
@@ -190,8 +194,6 @@ class Squad1_CA_Q:
         test_dataset = test_dataset.map(
             self.make_example, num_parallel_calls=-1)
 
-        cembs.save(cfg.EMBS_CVOCAB)
-        qembs.save(cfg.EMBS_QVOCAB)
         self.save(train_dataset, test_dataset)
         self.logger.debug(f"Memory freed: {gc.collect()}")
 
@@ -211,10 +213,10 @@ class Squad1_CA_Q:
         writer.write(train)
         self.logger.info("******** Finished saving dataset ********")
 
-    def make_example(self, cidx, aidx, qidx, ner, pos):
+    def make_example(self, cidx, ans, qidx, ner, pos):
         serialized = tf.py_function(
             self.serialize,
-            [cidx, aidx, qidx, ner, pos],
+            [cidx, ans, qidx, ner, pos],
             tf.string
         )
         return tf.reshape(serialized, ())
@@ -227,15 +229,15 @@ class Squad1_CA_Q:
             value = value.numpy()
         return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
-    def serialize(self, cidx, aidx, qidx, ner, pos):
+    def serialize(self, cidx, ans, qidx, ner, pos):
         cidx = tf.io.serialize_tensor(cidx)
-        aidx = tf.io.serialize_tensor(aidx)
+        ans = tf.io.serialize_tensor(ans)
         qidx = tf.io.serialize_tensor(qidx)
         ner = tf.io.serialize_tensor(ner)
         pos = tf.io.serialize_tensor(pos)
         feature = {
             "cidx": self._bytes_feature(cidx),
-            "aidx": self._bytes_feature(aidx),
+            "ans": self._bytes_feature(ans),
             "qidx": self._bytes_feature(qidx),
             "ner": self._bytes_feature(ner),
             "pos": self._bytes_feature(pos),

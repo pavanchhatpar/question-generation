@@ -19,6 +19,7 @@ __C.MIN_QVOCAB_FREQ = 1
 
 __C.EMBS_TYPE = 'glove'
 __C.EMBS_FILE = '/tf/data/features/glove/glove.840B.300d.txt'
+__C.EMBS_CACHE = '/tf/data/features/glove/glove_embs.pkl'
 __C.EMBS_CVOCAB = '/tf/data/features/glove/context_vocab.pkl'
 __C.EMBS_QVOCAB = '/tf/data/features/glove/question_vocab.pkl'
 __C.NER_TAGS_FILE = '/tf/data/features/ner/vocab.txt'
@@ -29,8 +30,8 @@ __C.PAD_ID = 0
 __C.START_ID = 2
 __C.END_ID = 3
 
-__C.LATENT_DIM = 100
-__C.HIDDEN_DIM = 100
+__C.LATENT_DIM = 8
+__C.HIDDEN_DIM = 8
 __C.LR = 1e-3
 __C.CLIP_NORM = 1
 __C.DROPOUT = 0.3
