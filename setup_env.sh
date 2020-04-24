@@ -1,3 +1,5 @@
+build_docker = [ if $1 exists, false, else, true]
+
 if [ ! -f ".env" ]; then
     echo "Refer to sample.env to make .env file as per your project"
     echo "See README for more details"
@@ -6,8 +8,10 @@ fi
 
 if [ -f "lock.env" ]; then
     source "lock.env"
-    docker rmi cs8674/nb:latest
-    docker rmi cs8674/bash:latest
+    if [ "$build_docker" = true ]; then
+        docker rmi cs8674/nb:latest
+        docker rmi cs8674/bash:latest
+    fi
     rm -rf $PYTHON_VENV_PATH
     rm ./data
     rm "lock.env"
@@ -22,15 +26,18 @@ if [ -z "$PYTHON_VENV_PATH" ]; then
     echo ".env should set PYTHON_VENV_PATH"
     exit 1
 fi
-if [ -z "$JUPYTER_PASSWD" ]; then
-    echo ".env should set JUPYTER_PASSWD"
-    exit 1
-fi
 
 ln -s $DATA_DIR ./data
 
-docker build --build-arg JUPYTER_PASSWD --target bash -t cs8674/bash:latest .
-docker build --build-arg JUPYTER_PASSWD --target nb -t cs8674/nb:latest .
+if [ "$build_docker" = true ]; then
+    if [ -z "$JUPYTER_PASSWD" ]; then
+        echo ".env should set JUPYTER_PASSWD"
+        exit 1
+    fi
+
+    docker build --build-arg JUPYTER_PASSWD --target bash -t cs8674/bash:latest .
+    docker build --build-arg JUPYTER_PASSWD --target nb -t cs8674/nb:latest .
+fi
 
 python3 -m venv $PYTHON_VENV_PATH
 source $PYTHON_VENV_PATH/bin/activate\
@@ -40,11 +47,13 @@ source $PYTHON_VENV_PATH/bin/activate\
 cp ".env" "lock.env"
 
 echo "***Environment is ready***"
-echo ""
-echo "-- Docker images prepared --"
-echo "cs8674/bash:latest"
-echo "cs8674/nb:latest"
-echo ""
-echo "-- Run commands --"
-echo "./run.sh bash"
-echo "./run.sh nb"
+if [ "$build_docker" = true ]; then
+    echo ""
+    echo "-- Docker images prepared --"
+    echo "cs8674/bash:latest"
+    echo "cs8674/nb:latest"
+    echo ""
+    echo "-- Run commands --"
+    echo "./run.sh bash"
+    echo "./run.sh nb"
+fi

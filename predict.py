@@ -233,9 +233,17 @@ def canpz_q():
             ans += cembs.inverse.get(ai.numpy(), cembs.UNK) + ' '
         context = filter(
             lambda w: w != cembs.PAD, context)
+        try:
+            ogques = ogques[:ogques.index(qembs.END)]
+        except:
+            pass
         ques = qembs.inverse_transform([pred[i].numpy()])[0]
+        try:
+            ques = ques[:ques.index(qembs.END)]
+        except:
+            pass
         print(f"Context:- {' '.join(context)}")
-        print(f"Answer:- {X[1]}")
+        print(f"Answer:- {ans}")
         print(f"OG Question:- {' '.join(ogques)}")
         print(f"Question:- {' '.join(ques)}")
         print(f"Attention Weights:- {attn_weights[i].numpy()}")
