@@ -1,0 +1,10 @@
+CONFIG_NAME: 'no-docker'
+LOG_FILENAME: './data/log.txt'
+SAVE_LOC: './data/features/prepared'
+
+EMBS_FILE: './data/features/glove/glove.840B.300d.txt'
+EMBS_CACHE: './data/features/glove/glove_embs.pkl'
+EMBS_CVOCAB: './data/features/glove/context_vocab.pkl'
+EMBS_QVOCAB: './data/features/glove/question_vocab.pkl'
+NER_TAGS_FILE: './data/features/ner/vocab.txt'
+POS_TAGS_FILE: './data/features/postags/vocab.txt'
