@@ -35,6 +35,7 @@ __C.HIDDEN_DIM = 8
 __C.LR = 1e-3
 __C.CLIP_NORM = 1
 __C.DROPOUT = 0.3
+__C.EPOCHS = 100
 # End defining default config
 
 

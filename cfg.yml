@@ -8,3 +8,5 @@ EMBS_CVOCAB: './data/features/glove/context_vocab.pkl'
 EMBS_QVOCAB: './data/features/glove/question_vocab.pkl'
 NER_TAGS_FILE: './data/features/ner/vocab.txt'
 POS_TAGS_FILE: './data/features/postags/vocab.txt'
+
+EPOCHS: 500

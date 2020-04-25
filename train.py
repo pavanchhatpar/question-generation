@@ -173,7 +173,7 @@ def canpz_q():
     if os.path.exists(loc):
         shutil.rmtree(loc)
     model.fit(
-        train, epochs=100,
+        train, epochs=cfg.EPOCHS,
         save_loc=loc, eval_set=val)
 
 
