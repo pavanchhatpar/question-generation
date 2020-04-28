@@ -8,9 +8,9 @@ import os
 
 from text_gan.data.qgen_data import QuestionContextPairs, CONFIG
 from text_gan.data.qgen_ca_q import CA_QPair, CA_Qcfg
-from text_gan import cfg, cfg_from_file
+from text_gan import cfg, cfg_from_file, Vocab
 from text_gan.data.squad1_ca_q import Squad1_CA_Q
-from text_gan.features import FastText, GloVe, NERTagger, PosTagger
+from text_gan.features import GloVeReader, FastTextReader, NERTagger, PosTagger
 from text_gan.models import AttnGen, QGAN, CA_Q_AttnQGen, CAZ_Q_Attn, CANPZ_Q
 
 # tf.debugging.set_log_device_placement(True)
@@ -147,7 +147,7 @@ def canpz_q():
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
-    train = data.skip(1000).take(10000)\
+    train = data.skip(1000).take(500)\
         .shuffle(buffer_size=100, seed=RNG_SEED)\
         .batch(128).apply(to_gpu)
     val = data.take(1000).batch(1000).apply(to_gpu)
@@ -156,22 +156,27 @@ def canpz_q():
         val = val.prefetch(1)
 
     if cfg.EMBS_TYPE == 'glove':
-        cembs = GloVe.load(cfg.EMBS_FILE, cfg.CSEQ_LEN, cfg.EMBS_CVOCAB)
-        qembs = GloVe.load(
-            cfg.EMBS_FILE, cfg.QSEQ_LEN, cfg.EMBS_QVOCAB, cembs.data)
+        embedding_reader = GloVeReader()
     elif cfg.EMBS_TYPE == 'fasttext':
-        cembs = FastText.load(cfg.EMBS_FILE, cfg.CSEQ_LEN, cfg.EMBS_CVOCAB)
-        qembs = FastText.load(
-            cfg.EMBS_FILE, cfg.QSEQ_LEN, cfg.EMBS_QVOCAB, cembs.data)
+        embedding_reader = FastTextReader()
     else:
         raise ValueError(f"Unsupported embeddings type {cfg.EMBS_TYPE}")
+    vocab = Vocab.load(
+        embedding_reader.START,
+        embedding_reader.END,
+        embedding_reader.PAD,
+        embedding_reader.UNK,
+        cfg.CSEQ_LEN,
+        cfg.QSEQ_LEN,
+        cfg.VOCAB_SAVE
+    )
     ner = NERTagger(cfg.NER_TAGS_FILE, cfg.CSEQ_LEN)
     pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
 
-    model = CANPZ_Q(cembs, ner, pos, qembs)
-    loc = "/tf/data/canpz_q/"
-    if os.path.exists(loc):
-        shutil.rmtree(loc)
+    model = CANPZ_Q(vocab, ner, pos)
+    loc = cfg.MODEL_SAVE
+    # if os.path.exists(loc):
+    #     shutil.rmtree(loc)
     model.fit(
         train, epochs=cfg.EPOCHS,
         save_loc=loc, eval_set=val)
@@ -204,4 +209,5 @@ if __name__ == "__main__":
             tf.config.experimental.set_memory_growth(gpus[0], True)
         except RuntimeError as e:
             print(e)
+    tf.debugging.set_log_device_placement(True)
     main()

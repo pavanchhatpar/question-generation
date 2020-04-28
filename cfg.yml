@@ -1,11 +1,10 @@
 CONFIG_NAME: 'no-docker'
 LOG_FILENAME: './data/log.txt'
-SAVE_LOC: './data/features/prepared'
+SAVE_LOC: './data/canpz_q/features'
+MODEL_SAVE: './data/canpz_q/model'
 
 EMBS_FILE: './data/features/glove/glove.840B.300d.txt'
-EMBS_CACHE: './data/features/glove/glove_embs.pkl'
-EMBS_CVOCAB: './data/features/glove/context_vocab.pkl'
-EMBS_QVOCAB: './data/features/glove/question_vocab.pkl'
+VOCAB_SAVE: './data/canpz_q/features/vocab'
 NER_TAGS_FILE: './data/features/ner/vocab.txt'
 POS_TAGS_FILE: './data/features/postags/vocab.txt'
 

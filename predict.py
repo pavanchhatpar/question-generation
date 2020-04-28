@@ -6,9 +6,9 @@ import logging
 
 from text_gan.data.qgen_data import QuestionContextPairs, CONFIG
 from text_gan.data.qgen_ca_q import CA_QPair, CA_Qcfg
-from text_gan import cfg, cfg_from_file
+from text_gan import cfg, cfg_from_file, Vocab
 from text_gan.data.squad1_ca_q import Squad1_CA_Q
-from text_gan.features import FastText, GloVe, NERTagger, PosTagger
+from text_gan.features import FastTextReader, GloVeReader, NERTagger, PosTagger
 from text_gan.models import QGAN, AttnGen, CA_Q_AttnQGen, CAZ_Q_Attn, CANPZ_Q
 
 MODELS = [
@@ -206,41 +206,46 @@ def canpz_q():
         val = val.prefetch(1)
 
     if cfg.EMBS_TYPE == 'glove':
-        cembs = GloVe.load(cfg.EMBS_FILE, cfg.CSEQ_LEN, cfg.EMBS_CVOCAB)
-        qembs = GloVe.load(
-            cfg.EMBS_FILE, cfg.QSEQ_LEN, cfg.EMBS_QVOCAB, cembs.data)
+        embedding_reader = GloVeReader()
     elif cfg.EMBS_TYPE == 'fasttext':
-        cembs = FastText.load(cfg.EMBS_FILE, cfg.CSEQ_LEN, cfg.EMBS_CVOCAB)
-        qembs = FastText.load(
-            cfg.EMBS_FILE, cfg.QSEQ_LEN, cfg.EMBS_QVOCAB, cembs.data)
+        embedding_reader = FastTextReader()
     else:
         raise ValueError(f"Unsupported embeddings type {cfg.EMBS_TYPE}")
+    vocab = Vocab.load(
+        embedding_reader.START,
+        embedding_reader.END,
+        embedding_reader.PAD,
+        embedding_reader.UNK,
+        cfg.CSEQ_LEN,
+        cfg.QSEQ_LEN,
+        cfg.VOCAB_SAVE
+    )
     ner = NERTagger(cfg.NER_TAGS_FILE, cfg.CSEQ_LEN)
     pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
 
-    model = CANPZ_Q(cembs, ner, pos, qembs)
-    model.load('/tf/data/canpz_q/')
+    model = CANPZ_Q(vocab, ner, pos)
+    model.load(cfg.MODEL_SAVE)
     pred, attn_weights = model.predict(train)
     i = 0
     for X, y in train:
-        context = cembs.inverse_transform(X[0].numpy())[0]
+        context = vocab.inverse_transform(X[0].numpy(), "source")[0]
         answer = tf.reshape(X[0]*tf.cast(X[1], tf.int32), (-1,))
-        ogques = qembs.inverse_transform(y.numpy())[0]
+        ogques = vocab.inverse_transform(y.numpy(), "target")[0]
         ans = ''
         for ai in answer:
             if ai == 0:
                 continue
-            ans += cembs.inverse.get(ai.numpy(), cembs.UNK) + ' '
+            ans += vocab.get_token_text(ai.numpy(), "source") + ' '
         context = filter(
-            lambda w: w != cembs.PAD, context)
+            lambda w: w != embedding_reader.PAD, context)
         try:
-            ogques = ogques[:ogques.index(qembs.END)]
-        except:
+            ogques = ogques[:ogques.index(embedding_reader.END)]
+        except:  # noqa
             pass
-        ques = qembs.inverse_transform([pred[i].numpy()])[0]
+        ques = vocab.inverse_transform([pred[i].numpy()], "target")[0]
         try:
-            ques = ques[:ques.index(qembs.END)]
-        except:
+            ques = ques[:ques.index(embedding_reader.END)]
+        except:  # noqa
             pass
         print(f"Context:- {' '.join(context)}")
         print(f"Answer:- {ans}")

@@ -1,19 +1,31 @@
 import tensorflow as tf
 import tensorflow.keras.layers as layers
 from tensorflow.keras import Model
+from typing import Dict, Any
 
 from ..layers import FixedEmbedding
 from ..config import cfg
+from ..vocab import Vocab
+from ..features import NERTagger, PosTagger
 
 
 class CANPZ_Q_Encoder(Model):
-    def __init__(self, cembs, ner, pos, **kwargs):
+    def __init__(self,
+                 vocab: Vocab,
+                 ner: NERTagger,
+                 pos: PosTagger,
+                 **kwargs: Dict[str, Any]):
         super(CANPZ_Q_Encoder, self).__init__(**kwargs)
 
         # embedding layers
-        self.token_emb_layer = FixedEmbedding(cembs.get_matrix(), cfg.CSEQ_LEN)
+        with tf.device("/cpu:0"):
+            self.token_emb_layer = FixedEmbedding(
+                vocab.get_embedding_matrix("source"),
+                cfg.CSEQ_LEN, mask_zero=True)
         self.ner_emb_layer = layers.Embedding(len(ner.tags2idx), 4)
         self.pos_emb_layer = layers.Embedding(len(pos.tags2idx), 5)
+
+        self.input_projection_layer = layers.Dense(300)
 
         # bi-gru
         self.bigru = layers.Bidirectional(layers.GRU(
@@ -25,8 +37,12 @@ class CANPZ_Q_Encoder(Model):
 
     def call(self, cidx, aidx, ner, pos, enc_hidden, training=None):
 
-        # (, 250) => (, 250, 300)
-        tokenemb = self.token_emb_layer(cidx)
+        with tf.device("/cpu:0"):
+            # (, 250) => (, 250, 300)
+            tokenemb = self.token_emb_layer(cidx)
+
+            # shape: (batch_size, source_seq_len)
+            source_mask = self.token_emb_layer.compute_mask(cidx)
 
         # (, 250) => (, 250, 4)
         neremb = self.ner_emb_layer(ner)
@@ -37,9 +53,12 @@ class CANPZ_Q_Encoder(Model):
         # (, 250, 300), (, 250, 4), (, 250, 5) => (, 250, 309)
         cemb = tf.concat([tokenemb, neremb, posemb], -1)
 
-        # (, 250, 309) => (, 250, h), (, h//2), (, h//2)
+        # shape: (batch_size, source_seq_len, 300)
+        cemb = self.input_projection_layer(cemb)
+
+        # (, 250, 300) => (, 250, h), (, h//2), (, h//2)
         hd, cfinalfenc, cfinalbenc = self.bigru(
-            cemb, initial_state=enc_hidden)
+            cemb, initial_state=enc_hidden, mask=source_mask)
 
         # (, h//2), (, h//2) => (, h)
         hD = tf.concat([cfinalfenc, cfinalbenc], -1)
@@ -49,12 +68,13 @@ class CANPZ_Q_Encoder(Model):
 
         # (, h)
         ha = tf.reduce_sum(tf.multiply(hd, aidx), 1)
-        asum = tf.maximum(tf.reduce_sum(aidx, 1), 1)
-        ha = ha / asum
+        alen = tf.maximum(tf.reduce_sum(aidx, 1), 1)
+        ha = ha / alen
 
         # (, h*2)
         meanlogvar = tf.concat([hD, ha], -1)
 
+        # (, h*2)
         meanlogvar = self.latent_reparam(meanlogvar)
 
         if training:
@@ -76,7 +96,7 @@ class CANPZ_Q_Encoder(Model):
         if training:
             s0 = tf.nn.dropout(s0, rate=cfg.DROPOUT)
 
-        return s0, hd, mean, logvar, z
+        return s0, hd, mean, logvar, z, source_mask
 
     def initialize_hidden_size(self, batch_sz):
         return [

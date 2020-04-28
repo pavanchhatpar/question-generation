@@ -1,6 +1,7 @@
 from ..config import cfg
-from ..features import GloVe, FastText, NERTagger, PosTagger
+from ..features import GloVeReader, FastTextReader, NERTagger, PosTagger
 from ..utils import MapReduce
+from ..vocab import Vocab
 
 import en_core_web_sm
 import tensorflow_datasets as tfds
@@ -86,13 +87,25 @@ class Squad1_CA_Q:
     def preprocess(self):
         self.logger.info("****Preparing dataset****")
         if cfg.EMBS_TYPE == 'glove':
-            cembs = GloVe(cfg.EMBS_FILE, cfg.CSEQ_LEN)
-            qembs = GloVe(cfg.EMBS_FILE, cfg.QSEQ_LEN, cembs.data)
+            embedding_reader = GloVeReader()
         elif cfg.EMBS_TYPE == 'fasttext':
-            cembs = FastText(cfg.EMBS_FILE, cfg.CSEQ_LEN)
-            qembs = FastText(cfg.EMBS_FILE, cfg.QSEQ_LEN, cembs.data)
+            embedding_reader = FastTextReader()
         else:
             raise ValueError(f"Unsupported embeddings type {cfg.EMBS_TYPE}")
+        pretrained_vectors = embedding_reader.read(cfg.EMBS_FILE)
+        vocab = Vocab(
+            embedding_reader.START,
+            embedding_reader.END,
+            embedding_reader.PAD,
+            embedding_reader.UNK,
+            cfg.CSEQ_LEN,
+            cfg.QSEQ_LEN,
+            pretrained_vectors
+        )
+        pardir = os.path.dirname(cfg.VOCAB_SAVE)
+        if not os.path.exists(pardir):
+            os.makedirs(pardir)
+        vocab.save(cfg.VOCAB_SAVE)
         ner = NERTagger(cfg.NER_TAGS_FILE, cfg.CSEQ_LEN)
         pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
         self.nlp = en_core_web_sm.load()
@@ -122,14 +135,10 @@ class Squad1_CA_Q:
             train_ans.append(ans)
         self.logger.info("****Filtered training split****")
 
-        cembs.fit(train_context)
-        qembs.fit(train_question, min_freq=2)
-        cembs.save(cfg.EMBS_CVOCAB)
-        qembs.save(cfg.EMBS_QVOCAB)
-        train_cidx = cembs.transform(train_context)
+        train_cidx = vocab.transform(train_context, "source")
         train_ner = ner.transform(train_context)
         train_pos = pos.transform(train_context)
-        train_qidx = qembs.transform(train_question)
+        train_qidx = vocab.transform(train_question, "target")
 
         cseq = cfg.CSEQ_LEN
         qseq = cfg.QSEQ_LEN
@@ -167,10 +176,10 @@ class Squad1_CA_Q:
             test_ans.append(ans)
         self.logger.info("****Filtered test split****")
 
-        test_cidx = cembs.transform(test_context)
+        test_cidx = vocab.transform(test_context, "source")
         test_ner = ner.transform(test_context)
         test_pos = pos.transform(test_context)
-        test_qidx = qembs.transform(test_question)
+        test_qidx = vocab.transform(test_question, "target")
 
         cseq = cfg.CSEQ_LEN
         qseq = cfg.QSEQ_LEN
