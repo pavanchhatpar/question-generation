@@ -50,15 +50,15 @@ class Vocab:
             pretrained_vectors,
             min_source_freq=1,
             min_target_freq=5):
-        source_vocab = defaultdict()
+        source_vocab = defaultdict(lambda: 0)
         for tokens in tokenized_source:
             for token in tokens:
-                source_vocab[token] += 1
+                source_vocab[token.text] += 1
 
-        target_vocab = defaultdict()
+        target_vocab = defaultdict(lambda: 0)
         for tokens in tokenized_target:
             for token in tokens:
-                target_vocab[token] += 1
+                target_vocab[token.text] += 1
 
         source_vocab = sorted(source_vocab.items(), key=lambda x: -x[1])
         if min_source_freq is not None:
@@ -165,7 +165,7 @@ class Vocab:
             raise ValueError(f"Unknown namespace: {namespace}")
 
     def _inverse_transform(self, idxed, idx2token):
-        res = np.full_like(idxed, dtype=object)
+        res = np.full_like(idxed, 'UNK', dtype=object)
         for i, idxs in enumerate(idxed):
             for j, idx in enumerate(idxs):
                 res[i, j] = self._get_token_text(idx, idx2token)

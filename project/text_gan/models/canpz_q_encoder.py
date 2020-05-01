@@ -3,7 +3,6 @@ import tensorflow.keras.layers as layers
 from tensorflow.keras import Model
 from typing import Dict, Any
 
-from ..layers import FixedEmbedding
 from ..config import cfg
 from ..vocab import Vocab
 from ..features import NERTagger, PosTagger
@@ -14,14 +13,13 @@ class CANPZ_Q_Encoder(Model):
                  vocab: Vocab,
                  ner: NERTagger,
                  pos: PosTagger,
+                 context_emb_layer,
                  **kwargs: Dict[str, Any]):
         super(CANPZ_Q_Encoder, self).__init__(**kwargs)
 
         # embedding layers
-        with tf.device("/cpu:0"):
-            self.token_emb_layer = FixedEmbedding(
-                vocab.get_embedding_matrix("source"),
-                cfg.CSEQ_LEN, mask_zero=True)
+        # with tf.device("cpu:0"):
+        self.token_emb_layer = context_emb_layer
         self.ner_emb_layer = layers.Embedding(len(ner.tags2idx), 4)
         self.pos_emb_layer = layers.Embedding(len(pos.tags2idx), 5)
 
@@ -36,8 +34,7 @@ class CANPZ_Q_Encoder(Model):
         self.enc = layers.Dense(cfg.HIDDEN_DIM, activation="tanh")
 
     def call(self, cidx, aidx, ner, pos, enc_hidden, training=None):
-
-        with tf.device("/cpu:0"):
+        with tf.device("cpu:0"):
             # (, 250) => (, 250, 300)
             tokenemb = self.token_emb_layer(cidx)
 

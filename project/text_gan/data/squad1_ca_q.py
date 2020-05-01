@@ -75,13 +75,15 @@ class Squad1_CA_Q:
         s = -1
         while i < len(context) and j < len(ans):
             if context[i].text == ans[j].text:
-                s = i
+                if s == -1:
+                    s = i
                 i += 1
                 j += 1
             else:
                 i += 1
                 j = 0
                 s = -1
+        
         return s, j
 
     def preprocess(self):
@@ -99,13 +101,11 @@ class Squad1_CA_Q:
             embedding_reader.PAD,
             embedding_reader.UNK,
             cfg.CSEQ_LEN,
-            cfg.QSEQ_LEN,
-            pretrained_vectors
+            cfg.QSEQ_LEN
         )
         pardir = os.path.dirname(cfg.VOCAB_SAVE)
         if not os.path.exists(pardir):
             os.makedirs(pardir)
-        vocab.save(cfg.VOCAB_SAVE)
         ner = NERTagger(cfg.NER_TAGS_FILE, cfg.CSEQ_LEN)
         pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
         self.nlp = en_core_web_sm.load()
@@ -126,6 +126,7 @@ class Squad1_CA_Q:
         train_ans = []
         for context, ques, ans in train_tokenized:
             ans_start, al = self.substrSearch(ans, context)
+            ans_start += 1
             if len(ques) >= 20 or ans_start == -1 or ans_start + al >= 250:
                 continue
             train_context.append(context)
@@ -135,6 +136,13 @@ class Squad1_CA_Q:
             train_ans.append(ans)
         self.logger.info("****Filtered training split****")
 
+        vocab.fit(
+            train_context,
+            train_question,
+            pretrained_vectors,
+            0, 0
+        )
+        vocab.save(cfg.VOCAB_SAVE)
         train_cidx = vocab.transform(train_context, "source")
         train_ner = ner.transform(train_context)
         train_pos = pos.transform(train_context)
@@ -167,6 +175,7 @@ class Squad1_CA_Q:
         test_ans = []
         for context, ques, ans in test_tokenized:
             ans_start, al = self.substrSearch(ans, context)
+            ans_start += 1
             if len(ques) >= 20 or ans_start == -1 or ans_start + al >= 250:
                 continue
             test_context.append(context)
