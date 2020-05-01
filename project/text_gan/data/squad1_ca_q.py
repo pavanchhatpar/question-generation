@@ -1,8 +1,8 @@
 from ..config import cfg
 from ..features import GloVeReader, FastTextReader, NERTagger, PosTagger
 from ..utils import MapReduce
-from ..vocab import Vocab
 
+from copynet_tf import Vocab
 import en_core_web_sm
 import tensorflow_datasets as tfds
 import tensorflow as tf
@@ -60,6 +60,9 @@ class Squad1_CA_Q:
         pos.set_shape([cfg.CSEQ_LEN, ])
         return ((cidx, ans, ner, pos), qidx)
 
+    def utf8_decoder(self, x):
+        return x.decode('utf-8')
+
     def tokenize_example(self, x):
         context, question, ans = list(self.nlp.pipe([
             x['context'].decode('utf-8'),
@@ -83,7 +86,7 @@ class Squad1_CA_Q:
                 i += 1
                 j = 0
                 s = -1
-        
+
         return s, j
 
     def preprocess(self):
@@ -111,42 +114,67 @@ class Squad1_CA_Q:
         self.nlp = en_core_web_sm.load()
 
         train = tfds.load("squad", data_dir="/tf/data/tf_data", split='train')
+        AUTOTUNE = tf.data.experimental.AUTOTUNE
+        train_context = train.map(
+            lambda x: x['context'], num_parallel_calls=AUTOTUNE)
+        train_question = train.map(
+            lambda x: x['question'], num_parallel_calls=AUTOTUNE)
+        train_ans = train.map(
+            lambda x: x['answers']['text'][0], num_parallel_calls=AUTOTUNE)
         test = tfds.load(
             "squad", data_dir="/tf/data/tf_data", split='validation')
+        test_context = test.map(
+            lambda x: x['context'], num_parallel_calls=AUTOTUNE)
+        test_question = test.map(
+            lambda x: x['question'], num_parallel_calls=AUTOTUNE)
+        test_ans = test.map(
+            lambda x: x['answers']['text'][0], num_parallel_calls=AUTOTUNE)
 
         mr = MapReduce()
 
         self.logger.info("****Preparing training split****")
-        train_iter = train.as_numpy_iterator()
-        train_tokenized = mr.process(self.tokenize_example, train_iter)
+        train_context = train_context.as_numpy_iterator()
+        train_context = mr.process(self.utf8_decoder, train_context)
+        train_question = train_question.as_numpy_iterator()
+        train_question = mr.process(self.utf8_decoder, train_question)
+        train_ans = train_ans.as_numpy_iterator()
+        train_ans = mr.process(self.utf8_decoder, train_ans)
+        self.logger.info("****Tokenizing training split****")
+        train_context = self.nlp.pipe(
+            train_context, batch_size=128, n_process=6)
+        train_question = self.nlp.pipe(
+            train_question, batch_size=128, n_process=6)
+        train_ans = self.nlp.pipe(
+            train_ans, batch_size=128, n_process=6)
         self.logger.info("****Tokenized training split****")
 
-        train_context = []
-        train_question = []
-        train_ans = []
-        for context, ques, ans in train_tokenized:
+        training_context = []
+        training_question = []
+        training_ans = []
+        for context, ques, ans in zip(
+                train_context, train_question, train_ans):
             ans_start, al = self.substrSearch(ans, context)
             ans_start += 1
             if len(ques) >= 20 or ans_start == -1 or ans_start + al >= 250:
                 continue
-            train_context.append(context)
-            train_question.append(ques)
+            training_context.append(context)
+            training_question.append(ques)
             ans = np.zeros(cfg.CSEQ_LEN, dtype=np.uint8)
             ans[ans_start:ans_start+al] = 1
-            train_ans.append(ans)
+            training_ans.append(ans)
         self.logger.info("****Filtered training split****")
 
         vocab.fit(
-            train_context,
-            train_question,
+            training_context,
+            training_question,
             pretrained_vectors,
             0, 0
         )
         vocab.save(cfg.VOCAB_SAVE)
-        train_cidx = vocab.transform(train_context, "source")
-        train_ner = ner.transform(train_context)
-        train_pos = pos.transform(train_context)
-        train_qidx = vocab.transform(train_question, "target")
+        train_cidx = vocab.transform(training_context, "source")
+        train_ner = ner.transform(training_context)
+        train_pos = pos.transform(training_context)
+        train_qidx = vocab.transform(training_question, "target")
 
         cseq = cfg.CSEQ_LEN
         qseq = cfg.QSEQ_LEN
@@ -154,7 +182,7 @@ class Squad1_CA_Q:
         def gen():
             for cidx, ner, pos, qidx, ans in zip(
                     train_cidx, train_ner, train_pos,
-                    train_qidx, train_ans):
+                    train_qidx, training_ans):
                 yield (cidx, ans, qidx, ner, pos)
 
         train_dataset = tf.data.Dataset.from_generator(
@@ -162,33 +190,46 @@ class Squad1_CA_Q:
             (tf.int32, tf.uint8, tf.int32, tf.uint8, tf.uint8),
             (
                 tf.TensorShape([cseq]), tf.TensorShape([cseq]),
-                tf.TensorShape([qseq]), tf.TensorShape([cseq]), tf.TensorShape([cseq]))
+                tf.TensorShape([qseq]), tf.TensorShape([cseq]),
+                tf.TensorShape([cseq]))
         )
 
         self.logger.info("****Preparing test split****")
-        test_iter = test.as_numpy_iterator()
-        test_tokenized = mr.process(self.tokenize_example, test_iter)
+        test_context = test_context.as_numpy_iterator()
+        test_context = mr.process(self.utf8_decoder, test_context)
+        test_question = test_question.as_numpy_iterator()
+        test_question = mr.process(self.utf8_decoder, test_question)
+        test_ans = test_ans.as_numpy_iterator()
+        test_ans = mr.process(self.utf8_decoder, test_ans)
+        self.logger.info("****Tokenizing test split****")
+        test_context = self.nlp.pipe(
+            test_context, batch_size=128, n_process=6)
+        test_question = self.nlp.pipe(
+            test_question, batch_size=128, n_process=6)
+        test_ans = self.nlp.pipe(
+            test_ans, batch_size=128, n_process=6)
         self.logger.info("****Tokenized test split****")
 
-        test_context = []
-        test_question = []
-        test_ans = []
-        for context, ques, ans in test_tokenized:
+        testing_context = []
+        testing_question = []
+        testing_ans = []
+        for context, ques, ans in zip(
+                test_context, test_question, test_ans):
             ans_start, al = self.substrSearch(ans, context)
             ans_start += 1
             if len(ques) >= 20 or ans_start == -1 or ans_start + al >= 250:
                 continue
-            test_context.append(context)
-            test_question.append(ques)
+            testing_context.append(context)
+            testing_question.append(ques)
             ans = np.zeros(cfg.CSEQ_LEN, dtype=np.uint8)
             ans[ans_start:ans_start+al] = 1
-            test_ans.append(ans)
+            testing_ans.append(ans)
         self.logger.info("****Filtered test split****")
 
-        test_cidx = vocab.transform(test_context, "source")
-        test_ner = ner.transform(test_context)
-        test_pos = pos.transform(test_context)
-        test_qidx = vocab.transform(test_question, "target")
+        test_cidx = vocab.transform(testing_context, "source")
+        test_ner = ner.transform(testing_context)
+        test_pos = pos.transform(testing_context)
+        test_qidx = vocab.transform(testing_question, "target")
 
         cseq = cfg.CSEQ_LEN
         qseq = cfg.QSEQ_LEN
@@ -196,7 +237,7 @@ class Squad1_CA_Q:
         def gen():
             for cidx, ner, pos, qidx, ans in zip(
                     test_cidx, test_ner, test_pos,
-                    test_qidx, test_ans):
+                    test_qidx, testing_ans):
                 yield (cidx, ans, qidx, ner, pos)
 
         test_dataset = tf.data.Dataset.from_generator(
@@ -204,7 +245,8 @@ class Squad1_CA_Q:
             (tf.int32, tf.uint8, tf.int32, tf.uint8, tf.uint8),
             (
                 tf.TensorShape([cseq]), tf.TensorShape([cseq]),
-                tf.TensorShape([qseq]), tf.TensorShape([cseq]), tf.TensorShape([cseq]))
+                tf.TensorShape([qseq]), tf.TensorShape([cseq]),
+                tf.TensorShape([cseq]))
         )
 
         train_dataset = train_dataset.map(

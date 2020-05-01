@@ -2,9 +2,9 @@ import tensorflow as tf
 import tensorflow.keras.layers as layers
 from tensorflow.keras import Model
 from typing import Dict, Any
+from copynet_tf import Vocab
 
 from ..config import cfg
-from ..vocab import Vocab
 from ..features import NERTagger, PosTagger
 
 
@@ -30,7 +30,7 @@ class CANPZ_Q_Encoder(Model):
             cfg.HIDDEN_DIM//2, return_sequences=True, return_state=True))
 
         # dense layers
-        self.latent_reparam = layers.Dense(cfg.LATENT_DIM*2)
+        self.latent_reparam = layers.Dense(cfg.LATENT_DIM*2, activation="relu")
         self.enc = layers.Dense(cfg.HIDDEN_DIM, activation="tanh")
 
     def call(self, cidx, aidx, ner, pos, enc_hidden, training=None):

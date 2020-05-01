@@ -3,10 +3,10 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.keras import Model
 from typing import Dict, Any
+from copynet_tf import Vocab
+from copynet_tf.layers import BahdanauAttention
 
-from ..layers import FixedEmbedding, BahdanauAttention, FixedDense
 from ..config import cfg
-from ..vocab import Vocab
 
 
 class CANPZ_Q_Decoder(Model):
@@ -33,7 +33,14 @@ class CANPZ_Q_Decoder(Model):
         # with tf.device("cpu:0"):
         self.dec = question_dec_layer
 
-    def call(self, qidx, s0, hd, source_mask, training=None):
+    def call(self, qidx, state, training=None):
+
+        if len(qidx.shape) == 1:
+            qidx = tf.expand_dims(qidx, 1)
+
+        s0 = state["s0"]
+        hd = state["hd"]
+        source_mask = state["source_mask"]
 
         # (, h), (, 250, 1)
         c0, attn_weights = self.dec_attn(s0, hd, source_mask)
@@ -60,4 +67,6 @@ class CANPZ_Q_Decoder(Model):
         with tf.device("cpu:0"):
             y = self.dec(qdec)
 
-        return y, s1, attn_weights
+        state["s0"] = s1
+        state["attn_weights"] = attn_weights
+        return y, state

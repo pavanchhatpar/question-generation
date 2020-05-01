@@ -12,4 +12,5 @@ easydict==1.9
 spacy==2.2.4
 cupy_cuda101==7.3.0
 ptvsd==4.3.2
+copynet-tf==0.1.0
 -e ./project

@@ -16,7 +16,7 @@ __C.MODEL_SAVE = '/tf/data/canpz_q/model'
 
 __C.CSEQ_LEN = 250
 __C.QSEQ_LEN = 20
-__C.MIN_QVOCAB_FREQ = 1
+__C.MIN_QVOCAB_FREQ = 5
 
 __C.EMBS_TYPE = 'glove'
 __C.EMBS_FILE = '/tf/data/features/glove/glove.840B.300d.txt'

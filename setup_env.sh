@@ -1,4 +1,12 @@
-build_docker = [ if $1 exists, false, else, true]
+if [ ! -z $1 ]; then
+    if [ $1 = "--no-docker" ]; then
+        build_docker=false
+    else
+        build_docker=true
+    fi
+else
+    build_docker=true
+fi
 
 if [ ! -f ".env" ]; then
     echo "Refer to sample.env to make .env file as per your project"
@@ -26,15 +34,15 @@ if [ -z "$PYTHON_VENV_PATH" ]; then
     echo ".env should set PYTHON_VENV_PATH"
     exit 1
 fi
-
-ln -s $DATA_DIR ./data
-
 if [ "$build_docker" = true ]; then
     if [ -z "$JUPYTER_PASSWD" ]; then
         echo ".env should set JUPYTER_PASSWD"
         exit 1
     fi
+fi
 
+ln -s $DATA_DIR ./data
+if [ "$build_docker" = true ]; then
     docker build --build-arg JUPYTER_PASSWD --target bash -t cs8674/bash:latest .
     docker build --build-arg JUPYTER_PASSWD --target nb -t cs8674/nb:latest .
 fi
@@ -42,7 +50,8 @@ fi
 python3 -m venv $PYTHON_VENV_PATH
 source $PYTHON_VENV_PATH/bin/activate\
     && pip install --upgrade pip setuptools\
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt\
+    && python -m spacy download en_core_web_sm
 
 cp ".env" "lock.env"
 

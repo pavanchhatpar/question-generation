@@ -2,8 +2,9 @@ import tensorflow as tf
 import argparse
 import numpy as np
 import logging
+from copynet_tf import Vocab
 
-from text_gan import cfg, cfg_from_file, Vocab
+from text_gan import cfg, cfg_from_file
 from text_gan.data.squad1_ca_q import Squad1_CA_Q
 from text_gan.features import FastTextReader, GloVeReader, NERTagger, PosTagger
 from text_gan.models import CANPZ_Q

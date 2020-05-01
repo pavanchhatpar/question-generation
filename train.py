@@ -1,8 +1,9 @@
 import tensorflow as tf
 import argparse
 import logging
+from copynet_tf import Vocab
 
-from text_gan import cfg, cfg_from_file, Vocab
+from text_gan import cfg, cfg_from_file
 from text_gan.data.squad1_ca_q import Squad1_CA_Q
 from text_gan.features import GloVeReader, FastTextReader, NERTagger, PosTagger
 from text_gan.models import CANPZ_Q
@@ -34,7 +35,6 @@ def canpz_q():
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
     train = data.skip(1000).take(10000)\
-        .shuffle(buffer_size=100, seed=RNG_SEED)\
         .batch(128).apply(to_gpu)
     val = data.take(1000).batch(128).apply(to_gpu)
     with tf.device("/gpu:0"):
