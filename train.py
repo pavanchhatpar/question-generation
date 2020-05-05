@@ -8,10 +8,14 @@ from text_gan.data.squad1_ca_q import Squad1_CA_Q
 from text_gan.features import GloVeReader, FastTextReader, NERTagger, PosTagger
 from text_gan.models import CANPZ_Q
 
+from text_gan.data.squad1_ca_qc import SQuAD_CA_QC
+from text_gan.models import CANP_QC
+
 # tf.debugging.set_log_device_placement(True)
 
 MODELS = [
     "canpz-q",
+    "canp-qc",
 ]
 
 
@@ -68,8 +72,45 @@ def canpz_q():
         save_loc=loc, eval_set=val)
 
 
+def canp_qc():
+    RNG_SEED = 11
+    data = SQuAD_CA_QC()
+    to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
+    data = data.train.shuffle(
+        buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
+    train = data.take(20000).batch(128).apply(to_gpu)
+    val = data.skip(20000).take(2000).batch(128).apply(to_gpu)
+    with tf.device("/gpu:0"):
+        train = train.prefetch(3)
+        val = val.prefetch(2)
+    if cfg.EMBS_TYPE == 'glove':
+        embedding_reader = GloVeReader()
+    elif cfg.EMBS_TYPE == 'fasttext':
+        embedding_reader = FastTextReader()
+    else:
+        raise ValueError(f"Unsupported embeddings type {cfg.EMBS_TYPE}")
+    vocab = Vocab.load(
+        embedding_reader.START,
+        embedding_reader.END,
+        embedding_reader.PAD,
+        embedding_reader.UNK,
+        cfg.CSEQ_LEN,
+        cfg.QSEQ_LEN,
+        cfg.VOCAB_SAVE
+    )
+    ner = NERTagger(cfg.NER_TAGS_FILE, cfg.CSEQ_LEN)
+    pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
+
+    model = CANP_QC(vocab, ner, pos)
+    loc = cfg.MODEL_SAVE
+    model.fit(
+        train, epochs=cfg.EPOCHS,
+        save_loc=loc, eval_set=val, warm_start=True)
+
+
 MODEL_METHODS = {
-    "canpz-q": canpz_q
+    "canpz-q": canpz_q,
+    "canp-qc": canp_qc,
 }
 
 

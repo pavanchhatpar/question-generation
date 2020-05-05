@@ -35,7 +35,7 @@ class CANPZ_Q:
         self.logger = logging.getLogger(__name__)
         self.vocab = vocab
         self.searcher = BeamSearch(
-            2, self.vocab.get_token_id(self.vocab._end_token, "target"),
+            10, self.vocab.get_token_id(self.vocab._end_token, "target"),
             cfg.QSEQ_LEN - 1)
 
     @staticmethod

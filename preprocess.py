@@ -1,4 +1,5 @@
 from text_gan.data.squad1_ca_q import Squad1_CA_Q
+from text_gan.data.squad1_ca_qc import SQuAD_CA_QC
 from text_gan import cfg_from_file, cfg
 
 import argparse
@@ -6,7 +7,8 @@ import multiprocessing
 import logging
 
 DATA = [
-    "squadca-q"
+    "squadca-q",
+    "squadca-qc"
 ]
 
 
@@ -31,6 +33,8 @@ def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     if args.dataset == "squadca-q":
         _ = Squad1_CA_Q(prepare=True)
+    elif args.dataset == "squadca-qc":
+        _ = SQuAD_CA_QC(prepare=True)
 
 
 if __name__ == "__main__":

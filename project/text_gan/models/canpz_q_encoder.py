@@ -3,6 +3,7 @@ import tensorflow.keras.layers as layers
 from tensorflow.keras import Model
 from typing import Dict, Any
 from copynet_tf import Vocab
+from copynet_tf.layers import BahdanauAttention
 
 from ..config import cfg
 from ..features import NERTagger, PosTagger
