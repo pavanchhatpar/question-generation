@@ -60,7 +60,8 @@ class CANP_QC:
         return output_dict
 
     def debug(
-            self, cis, qit, ans, attn_weights, selective_weights, epoch, batch):
+            self, cis, qit, ans, attn_weights,
+            selective_weights, epoch, batch):
         k = 5
         self.logger.debug(f"**** Epoch {epoch} Batch {batch} ****")
         # shape (samples, max_decoding_steps, 5)
@@ -252,6 +253,7 @@ class CANP_QC:
         ret_val = None
         logprobas = None
         nottraining = tf.constant(False)
+        training = tf.constant(True)
         epoch = tf.constant(1, dtype=tf.int32)
         n = tf.constant(0, dtype=tf.float32)
         for X, y in dataset:
@@ -268,9 +270,29 @@ class CANP_QC:
             if ret_val is None:
                 ret_val = op
                 logprobas = logproba
-                continue
-            ret_val = tf.concat([ret_val, op], 0)
-            logprobas = tf.concat([logprobas, logproba], 0)
+            else:
+                ret_val = tf.concat([ret_val, op], 0)
+                logprobas = tf.concat([logprobas, logproba], 0)
+
+            output_dict = self.forward_step(
+                cis, cit, ans, ner, pos, qit, qis,
+                enc_hidden, epoch, n, training)
+            loss = output_dict["loss"]
+            samples = cis.shape[0]
+            tf.py_function(
+                self.debug,
+                [
+                    cis[:samples],
+                    qit[:samples],
+                    ans[:samples],
+                    output_dict["attentive_weights"][:samples],
+                    output_dict["selective_weights"][:samples],
+                    epoch,
+                    n
+                ],
+                [], name="Debug"
+            )
+
         return ret_val, logprobas
 
     def _load(self, save_loc):

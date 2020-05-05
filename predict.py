@@ -132,9 +132,9 @@ def canp_qc():
 
     model = CANP_QC(vocab, ner, pos)
     model.load(cfg.MODEL_SAVE)
-    pred, logprobas = model.predict(val)
+    pred, logprobas = model.predict(train)
     i = 0
-    for X, y in val.unbatch():
+    for X, y in train.unbatch():
         cis, cit, answer, ner, pos = X
         qit, qis = y
         context = vocab.inverse_transform([cis.numpy()], "source")[0]
@@ -198,16 +198,12 @@ def main(args):
     logging.basicConfig(
         level=cfg.LOG_LVL,
         filename=cfg.LOG_FILENAME,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        format='%(message)s')
     MODEL_METHODS[args.model]()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    logging.basicConfig(
-        level=cfg.LOG_LVL,
-        filename=cfg.LOG_FILENAME,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
         try:
