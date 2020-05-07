@@ -132,9 +132,9 @@ def canp_qc():
 
     model = CANP_QC(vocab, ner, pos)
     model.load(cfg.MODEL_SAVE)
-    pred, logprobas = model.predict(train)
+    pred, logprobas = model.predict(val)
     i = 0
-    for X, y in train.unbatch():
+    for X, y in val.unbatch():
         cis, cit, answer, ner, pos = X
         qit, qis = y
         context = vocab.inverse_transform([cis.numpy()], "source")[0]
@@ -160,13 +160,13 @@ def canp_qc():
         # attn_tokens = vocab.inverse_transform(attn_tokens.numpy(), "source")
         print(f"Context:- {' '.join(context)}")
         print(f"Answer:- {ans}")
-        print(f"Answer:- {answer}")
         print(f"OG Question:- {' '.join(ogques)}")
 
         print(f"Top Questions:")
         for j in range(10):
             p = idx2str(pred[i][j].numpy(), cis.numpy(), vocab)
-            print(f"Predicted: {' '.join(p)}\tProba: {logprobas[i][j]}")
+            print(f"Predicted: {' '.join(p)}\t"
+                  f"Proba: {tf.exp(logprobas[i][j])}")
         # print(f"Log probs:- {logprobas[i]}")
         # print(
         #     f"Top attentive words for first 5 question tokens\n {attn_tokens}")

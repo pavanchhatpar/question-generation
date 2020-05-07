@@ -17,8 +17,8 @@ fi
 if [ -f "lock.env" ]; then
     source "lock.env"
     if [ "$build_docker" = true ]; then
-        docker rmi cs8674/nb:latest
         docker rmi cs8674/bash:latest
+        docker rmi cs8674/nb:latest
     fi
     rm -rf $PYTHON_VENV_PATH
     rm ./data
@@ -50,7 +50,7 @@ fi
 python3 -m venv $PYTHON_VENV_PATH
 source $PYTHON_VENV_PATH/bin/activate\
     && pip install --upgrade pip setuptools\
-    && pip install --no-cache-dir -r requirements.txt\
+    && pip install -r requirements.txt\
     && python -m spacy download en_core_web_sm
 
 cp ".env" "lock.env"

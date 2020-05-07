@@ -1,7 +1,5 @@
 FROM tensorflow/tensorflow:latest-gpu-py3-jupyter AS nb
 WORKDIR /tf/src
-RUN apt-get -y update\
-    && apt-get install -y graphviz
 COPY . /tf/src
 ARG JUPYTER_PASSWD
 ENV HOME /tf
