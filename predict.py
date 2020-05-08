@@ -108,7 +108,7 @@ def canp_qc():
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
     train = data.take(10).batch(128).apply(to_gpu)
-    val = data.skip(20000).take(10).batch(128).apply(to_gpu)
+    val = data.skip(cfg.TRAIN_SIZE).take(10).batch(128).apply(to_gpu)
     with tf.device("/gpu:0"):
         train = train.prefetch(1)
         val = val.prefetch(1)

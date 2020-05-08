@@ -35,8 +35,9 @@ class CANP_QC:
                     np.zeros(question_vocab.shape[0])])
         self.encoder = CANP_QC_Encoder(vocab, ner, pos, context_emb_layer)
         self.searcher = BeamSearch(
-            10, self.vocab.get_token_id(self.vocab._end_token, "target"),
-            cfg.QSEQ_LEN - 1)
+            cfg.BEAM_WIDTH,
+            self.vocab.get_token_id(self.vocab._end_token, "target"),
+            cfg.QPRED_LEN)
         self.decoder = CopyNetDecoder(
             vocab, cfg.HIDDEN_DIM, self.searcher, question_dec_layer)
         self.logger = logging.getLogger(__name__)
@@ -144,7 +145,7 @@ class CANP_QC:
                 encoder=self.encoder,
                 decoder=self.decoder)
             ckpt_manager = tf.train.CheckpointManager(
-                ckpt_saver, save_loc, max_to_keep=10)
+                ckpt_saver, save_loc, max_to_keep=cfg.CKPT_COUNT)
         else:
             self.optimizer, ckpt_saver, ckpt_manager = self._load(save_loc)
         training = tf.constant(True)
@@ -274,24 +275,24 @@ class CANP_QC:
                 ret_val = tf.concat([ret_val, op], 0)
                 logprobas = tf.concat([logprobas, logproba], 0)
 
-            output_dict = self.forward_step(
-                cis, cit, ans, ner, pos, qit, qis,
-                enc_hidden, epoch, n, training)
-            loss = output_dict["loss"]
-            samples = cis.shape[0]
-            tf.py_function(
-                self.debug,
-                [
-                    cis[:samples],
-                    qit[:samples],
-                    ans[:samples],
-                    output_dict["attentive_weights"][:samples],
-                    output_dict["selective_weights"][:samples],
-                    epoch,
-                    n
-                ],
-                [], name="Debug"
-            )
+            # output_dict = self.forward_step(
+            #     cis, cit, ans, ner, pos, qit, qis,
+            #     enc_hidden, epoch, n, training)
+            # loss = output_dict["loss"]
+            # samples = cis.shape[0]
+            # tf.py_function(
+            #     self.debug,
+            #     [
+            #         cis[:samples],
+            #         qit[:samples],
+            #         ans[:samples],
+            #         output_dict["attentive_weights"][:samples],
+            #         output_dict["selective_weights"][:samples],
+            #         epoch,
+            #         n
+            #     ],
+            #     [], name="Debug"
+            # )
 
         return ret_val, logprobas
 
@@ -303,7 +304,7 @@ class CANP_QC:
             decoder=self.decoder
         )
         ckpt_manager = tf.train.CheckpointManager(
-            ckpt, save_loc, max_to_keep=10)
+            ckpt, save_loc, max_to_keep=cfg.CKPT_COUNT)
         ckpt.restore(ckpt_manager.latest_checkpoint).expect_partial()
         return optimizer, ckpt, ckpt_manager
 

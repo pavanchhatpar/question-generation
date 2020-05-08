@@ -27,7 +27,10 @@ __C.MAX_PARALLELISM = 12
 
 __C.CSEQ_LEN = 250
 __C.QSEQ_LEN = 20
+__C.BEAM_WIDTH = 2
+__C.QPRED_LEN = 19
 __C.MIN_QVOCAB_FREQ = 5
+__C.CKPT_COUNT = 10
 
 __C.EMBS_TYPE = 'glove'
 __C.EMBS_FILE = '/tf/data/features/glove/glove.840B.300d.txt'
@@ -40,12 +43,15 @@ __C.PAD_ID = 0
 __C.START_ID = 2
 __C.END_ID = 3
 
+__C.BATCH_SIZE = 128
 __C.LATENT_DIM = 300
 __C.HIDDEN_DIM = 300
 __C.LR = 1e-3
 __C.CLIP_NORM = 1
 __C.DROPOUT = 0.3
 __C.EPOCHS = 100
+__C.TRAIN_SIZE = 10000
+__C.VAL_SIZE = 1000
 # End defining default config
 
 

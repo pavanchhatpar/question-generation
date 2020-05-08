@@ -6,4 +6,5 @@
 jupyter.password
 **/__pycache__
 .env
+lock.env
 /data

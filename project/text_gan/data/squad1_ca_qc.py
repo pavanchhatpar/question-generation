@@ -140,7 +140,7 @@ class SQuAD_CA_QC:
             training_context,
             training_question,
             pretrained_vectors,
-            0, 5
+            0, cfg.MIN_QVOCAB_FREQ
         )
         train_cis = vocab.transform(training_context, "source")
         train_cit = vocab.transform(training_context, "target", cfg.CSEQ_LEN)

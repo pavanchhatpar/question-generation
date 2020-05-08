@@ -78,8 +78,9 @@ def canp_qc():
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
-    train = data.take(20000).batch(128).apply(to_gpu)
-    val = data.skip(20000).take(2000).batch(128).apply(to_gpu)
+    train = data.take(cfg.TRAIN_SIZE).batch(cfg.BATCH_SIZE).apply(to_gpu)
+    val = data.skip(cfg.TRAIN_SIZE).take(
+        cfg.VAL_SIZE).batch(cfg.BATCH_SIZE).apply(to_gpu)
     with tf.device("/gpu:0"):
         train = train.prefetch(3)
         val = val.prefetch(2)
@@ -129,8 +130,13 @@ if __name__ == "__main__":
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
         try:
-            tf.config.experimental.set_memory_growth(gpus[0], True)
+            tf.config.experimental.set_virtual_device_configuration(
+                gpus[0],
+                [tf.config.experimental.VirtualDeviceConfiguration(
+                    memory_limit=1024*10)])
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
         except RuntimeError as e:
+            # Virtual devices must be set before GPUs have been initialized
             print(e)
     # tf.debugging.set_log_device_placement(True)
     main()

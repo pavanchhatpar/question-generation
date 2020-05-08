@@ -1,11 +1,23 @@
 CONFIG_NAME: 'no-docker'
 LOG_FILENAME: './data/log.txt'
-SAVE_LOC: './data/canpz_q/features'
-MODEL_SAVE: './data/canpz_q/model'
+SAVE_LOC: './data/canp_qc/features'
+MODEL_SAVE: './data/canp_qc/model'
+
+RAW_TRAIN_SAVE: './data/squad1/train.json'
+RAW_DEV_SAVE: './data/squad1/dev.json'
+MAX_PARALLELISM: 20
+
+CKPT_COUNT: 100
+MIN_QVOCAB_FREQ: 10
+BEAM_WIDTH: 10
+QPRED_LEN: 19
 
 EMBS_FILE: './data/features/glove/glove.840B.300d.txt'
-VOCAB_SAVE: './data/canpz_q/features/vocab'
+VOCAB_SAVE: './data/canp_qc/features/vocab'
 NER_TAGS_FILE: './data/features/ner/vocab.txt'
 POS_TAGS_FILE: './data/features/postags/vocab.txt'
 
-EPOCHS: 500
+EPOCHS: 40
+BATCH_SIZE: 512
+TRAIN_SIZE: 50000
+VAL_SIZE: 5000
