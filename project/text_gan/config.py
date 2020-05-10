@@ -11,18 +11,18 @@ model_name = 'canp_qc'
 # Start defining default config
 __C.CONFIG_NAME = 'DEFAULT'
 __C.LOG_LVL = logging.DEBUG  # returns a number
-__C.LOG_FILENAME = "/tf/data/log.txt"
+__C.LOG_FILENAME = "./data/log.txt"
 __C.MAX_ARRAY_LOG = 10
-__C.SAVE_LOC = f'/tf/data/{model_name}/features'
-__C.MODEL_SAVE = f'/tf/data/{model_name}/model'
+__C.SAVE_LOC = f'./data/{model_name}/features'
+__C.MODEL_SAVE = f'./data/{model_name}/model'
 
 __C.RAW_TRAIN_URL = ('https://raw.githubusercontent.com/rajpurkar/SQuAD-explor'
                      + 'er/master/dataset/train-v1.1.json')
 __C.RAW_DEV_URL = ('https://raw.githubusercontent.com/rajpurkar/SQuAD-explorer'
                    + '/master/dataset/dev-v1.1.json')
 
-__C.RAW_TRAIN_SAVE = '/tf/data/squad1/train.json'
-__C.RAW_DEV_SAVE = '/tf/data/squad1/dev.json'
+__C.RAW_TRAIN_SAVE = './data/squad1/train.json'
+__C.RAW_DEV_SAVE = './data/squad1/dev.json'
 __C.MAX_PARALLELISM = 12
 
 __C.CSEQ_LEN = 250
@@ -33,10 +33,10 @@ __C.MIN_QVOCAB_FREQ = 5
 __C.CKPT_COUNT = 10
 
 __C.EMBS_TYPE = 'glove'
-__C.EMBS_FILE = '/tf/data/features/glove/glove.840B.300d.txt'
-__C.VOCAB_SAVE = f'/tf/data/{model_name}/features/vocab'
-__C.NER_TAGS_FILE = '/tf/data/features/ner/vocab.txt'
-__C.POS_TAGS_FILE = '/tf/data/features/postags/vocab.txt'
+__C.EMBS_FILE = './data/features/glove/glove.840B.300d.txt'
+__C.VOCAB_SAVE = f'./data/{model_name}/features/vocab'
+__C.NER_TAGS_FILE = './data/features/ner/vocab.txt'
+__C.POS_TAGS_FILE = './data/features/postags/vocab.txt'
 
 __C.UNK_ID = 1
 __C.PAD_ID = 0

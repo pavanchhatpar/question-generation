@@ -10,13 +10,13 @@ if [ "$1" == "nb" ]; then
     docker run -it --gpus all --rm\
         -u $(id -u):$(id -g)\
         -v "`pwd`:/tf/src"\
-        -v "`echo $DATA_DIR`:/tf/data"\
+        -v "`echo $DATA_DIR`:`echo $DATA_DIR`"\
         -p 8991:8888\
         cs8674/$1:latest
 else
     docker run -it --gpus all --rm\
         -u $(id -u):$(id -g)\
         -v "`pwd`:/tf/src"\
-        -v "`echo $DATA_DIR`:/tf/data"\
+        -v "`echo $DATA_DIR`:`echo $DATA_DIR`"\
         cs8674/$1:latest
 fi

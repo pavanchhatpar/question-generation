@@ -1,5 +1,6 @@
 from text_gan.data.squad1_ca_q import Squad1_CA_Q
 from text_gan.data.squad1_ca_qc import SQuAD_CA_QC
+from text_gan.data.squad_ca_preqc import SQuAD_CA_PreQC
 from text_gan import cfg_from_file, cfg
 
 import argparse
@@ -8,7 +9,8 @@ import logging
 
 DATA = [
     "squadca-q",
-    "squadca-qc"
+    "squadca-qc",
+    "squadca-preqc",
 ]
 
 
@@ -35,6 +37,8 @@ def main():
         _ = Squad1_CA_Q(prepare=True)
     elif args.dataset == "squadca-qc":
         _ = SQuAD_CA_QC(prepare=True)
+    elif args.dataset == "squadca-preqc":
+        _ = SQuAD_CA_PreQC(prepare=True)
 
 
 if __name__ == "__main__":
