@@ -5,10 +5,10 @@ SAVE_LOC: './data/canp_preqc/features'
 MODEL_SAVE: './data/canp_preqc/model'
 VOCAB_SAVE: './data/canp_preqc/features/vocab'
 
-MAX_PARALLELISM: 12
+MAX_PARALLELISM: 20
 CKPT_COUNT: 100
 MIN_QVOCAB_FREQ: 10
-BEAM_WIDTH: 2
+BEAM_WIDTH: 10
 QPRED_LEN: 9
 QSEQ_LEN: 10
 
