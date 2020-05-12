@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 import logging
 from copynet_tf.layers import FixedEmbedding, FixedDense
-from copynet_tf.metrics import compute_bleu
+# from copynet_tf.metrics import compute_bleu
 from copynet_tf.search import BeamSearch
 
 from .canpz_q_encoder import CANPZ_Q_Encoder

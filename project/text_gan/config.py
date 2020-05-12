@@ -1,6 +1,5 @@
 import numpy as np
 from easydict import EasyDict as edict
-import logging
 
 
 __C = edict()
@@ -9,9 +8,8 @@ cfg = __C
 model_name = 'canp_qc'
 
 # Start defining default config
+__C.MODEL = 'canp-qc'
 __C.CONFIG_NAME = 'DEFAULT'
-__C.LOG_LVL = logging.DEBUG  # returns a number
-__C.LOG_FILENAME = "./data/log.txt"
 __C.MAX_ARRAY_LOG = 10
 __C.SAVE_LOC = f'./data/{model_name}/features'
 __C.MODEL_SAVE = f'./data/{model_name}/model'

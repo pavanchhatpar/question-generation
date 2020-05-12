@@ -4,7 +4,7 @@ from tqdm import tqdm
 import logging
 from typing import Dict, Any
 from copynet_tf.layers import FixedEmbedding, FixedDense
-from copynet_tf.metrics import compute_bleu
+# from copynet_tf.metrics import compute_bleu
 from copynet_tf.search import BeamSearch
 from copynet_tf import CopyNetDecoder, Vocab
 

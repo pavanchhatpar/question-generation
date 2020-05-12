@@ -1,7 +1,10 @@
 import tensorflow as tf
-import argparse
-import logging
+from absl import logging, flags, app
+from logging import Formatter
 from copynet_tf import Vocab
+from copynet_tf.loss import CopyNetLoss
+from copynet_tf.metrics import BLEU
+import os
 
 from text_gan import cfg, cfg_from_file
 from text_gan.data.squad1_ca_q import Squad1_CA_Q
@@ -16,24 +19,7 @@ from text_gan.models import CANP_PreQC
 
 # tf.debugging.set_log_device_placement(True)
 
-MODELS = [
-    "canpz-q",
-    "canp-qc",
-    "canp-preqc",
-]
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model", "-m", choices=MODELS,
-        required=True, dest="model",
-        help="Select model to run predictions from")
-    parser.add_argument(
-        "--cfg", dest="cfg", type=str, help="Config YAML filepath",
-        required=False, default=None)
-    args = parser.parse_args()
-    return args
+FLAGS = flags.FLAGS
 
 
 def canpz_q():
@@ -119,9 +105,10 @@ def canp_preqc():
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
-    train = data.take(cfg.TRAIN_SIZE).batch(cfg.BATCH_SIZE).apply(to_gpu)
+    train = data.take(cfg.TRAIN_SIZE).batch(
+        cfg.BATCH_SIZE, drop_remainder=True).apply(to_gpu)
     val = data.skip(cfg.TRAIN_SIZE).take(
-        cfg.VAL_SIZE).batch(cfg.BATCH_SIZE).apply(to_gpu)
+        cfg.VAL_SIZE).batch(cfg.BATCH_SIZE, drop_remainder=True).apply(to_gpu)
     with tf.device("/gpu:0"):
         train = train.prefetch(3)
         val = val.prefetch(2)
@@ -142,16 +129,30 @@ def canp_preqc():
     )
     ner = NERTagger(cfg.NER_TAGS_FILE, cfg.CSEQ_LEN)
     pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
-    # counter = 0
-    # for X, y in data:
-    #     counter += 1
-    # print("Total", counter)
 
     model = CANP_PreQC(vocab, ner, pos)
-    loc = cfg.MODEL_SAVE
-    model.fit(
-        train, epochs=cfg.EPOCHS,
-        save_loc=loc, eval_set=val)
+
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(cfg.LR, clipnorm=cfg.CLIP_NORM),
+        loss=CopyNetLoss(),
+        metrics=[
+            BLEU(ignore_tokens=[0, 2, 3], ignore_all_tokens_after=3),
+            BLEU(ignore_tokens=[0, 2, 3], ignore_all_tokens_after=3,
+                 name='bleu-smooth', smooth=True)
+        ]
+    )
+
+    ckpt = tf.keras.callbacks.ModelCheckpoint(
+        cfg.MODEL_SAVE+"/{epoch:02d}.tf", monitor='val_bleu',
+        save_weights_only=True)
+    # tensorboard = tf.keras.callbacks.TensorBoard(
+    #     FLAGS.log_dir, )
+
+    _ = model.fit(
+        train, epochs=cfg.EPOCHS, validation_data=val, shuffle=False,
+        callbacks=[
+            ckpt
+        ])
 
 
 MODEL_METHODS = {
@@ -160,16 +161,26 @@ MODEL_METHODS = {
     "canp-preqc": canp_preqc,
 }
 
+flags.DEFINE_string("cfg", None, "Config YAML filepath")
 
-def main():
-    args = parse_args()
-    if args.cfg is not None:
-        cfg_from_file(args.cfg)
-    logging.basicConfig(
-        level=cfg.LOG_LVL,
-        filename=cfg.LOG_FILENAME,
-        format='%(message)s')
-    MODEL_METHODS[args.model]()
+
+def main(argv):
+    del argv
+
+    if FLAGS.cfg is not None:
+        cfg_from_file(FLAGS.cfg)
+
+    if FLAGS.log_dir is not None:
+        if not os.path.exists(FLAGS.log_dir):
+            os.makedirs(FLAGS.log_dir)
+        if not os.path.isdir(FLAGS.log_dir):
+            raise ValueError(f"{FLAGS.log_dir} should be a directory!")
+        logging.get_absl_handler().use_absl_log_file()
+
+    logging.get_absl_handler().setFormatter(
+        Formatter(fmt="%(levelname)s:%(message)s"))
+
+    MODEL_METHODS[cfg.MODEL]()
 
 
 if __name__ == "__main__":
@@ -191,4 +202,4 @@ if __name__ == "__main__":
     #         # Virtual devices must be set before GPUs have been initialized
     #         print(e)
     # tf.debugging.set_log_device_placement(True)
-    main()
+    app.run(main)

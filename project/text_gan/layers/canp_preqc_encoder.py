@@ -1,6 +1,5 @@
 import tensorflow as tf
 import tensorflow.keras.layers as layers
-from tensorflow.keras import Model
 from typing import Dict, Any, Tuple
 from copynet_tf import Vocab
 from copynet_tf.layers import FixedEmbedding
@@ -9,7 +8,7 @@ from ..config import cfg
 from ..features import NERTagger, PosTagger
 
 
-class CANP_PreQC_Encoder(Model):
+class CANP_PreQC_Encoder(layers.Layer):
     def __init__(self,
                  vocab: Vocab,
                  ner: NERTagger,
@@ -33,6 +32,7 @@ class CANP_PreQC_Encoder(Model):
             cfg.HIDDEN_DIM//2))
         self.final = layers.Dense(cfg.HIDDEN_DIM, activation="tanh")
 
+    @tf.function
     def call(self,
              cis: tf.Tensor,
              ans: tf.Tensor,
@@ -42,15 +42,15 @@ class CANP_PreQC_Encoder(Model):
              enc_hidden: tf.Tensor,
              training: bool = False) -> Tuple[
                  tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
-        with tf.device("cpu:0"):
-            # shape: (batch_size, cseq_len, 300)
-            tokenemb = self.token_emb_layer(cis)
-            # shape: (batch_size, cseq_len)
-            source_mask = self.token_emb_layer.compute_mask(cis)
-            # shape: (batch_size, qseq_len, 300)
-            preqemb = self.preq_emb_layer(preq)
-            # shape: (batch_size, qseq_len)
-            preq_mask = self.preq_emb_layer.compute_mask(preq)
+        # with tf.device("cpu:0"):
+        # shape: (batch_size, cseq_len, 300)
+        tokenemb = self.token_emb_layer(cis)
+        # shape: (batch_size, cseq_len)
+        source_mask = self.token_emb_layer.compute_mask(cis)
+        # shape: (batch_size, qseq_len, 300)
+        preqemb = self.preq_emb_layer(preq)
+        # shape: (batch_size, qseq_len)
+        preq_mask = self.preq_emb_layer.compute_mask(preq)
 
         # shape: (batch_size, cseq_len, 3)
         neremb = self.ner_emb_layer(ner)
@@ -77,7 +77,7 @@ class CANP_PreQC_Encoder(Model):
         hD = tf.concat([hD_1, hD_2, preq_final], -1)
         hD = self.final(hD)
 
-        return hd, hD, source_mask, tokenemb
+        return hd, hD, source_mask
 
     def initialize_hidden_size(self, batch_sz):
         return [
