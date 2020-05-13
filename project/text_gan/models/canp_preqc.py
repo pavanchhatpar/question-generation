@@ -47,7 +47,8 @@ class CANP_PreQC(Model):
         self.decoder = CopyNetDecoder(
             vocab, cfg.HIDDEN_DIM, self.searcher, question_dec_layer,
             copy_token=copy_token)
-        self._train_counter = tf.Variable(0, dtype=tf.int32)
+        self._train_counter = tf.Variable(
+            0, dtype=tf.int32, trainable=False, name="train_counter")
 
     @tf.function
     def call(self, X, y=(None, None), training=False):

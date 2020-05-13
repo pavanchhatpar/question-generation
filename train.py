@@ -145,13 +145,14 @@ def canp_preqc():
     ckpt = tf.keras.callbacks.ModelCheckpoint(
         cfg.MODEL_SAVE+"/{epoch:02d}.tf", monitor='val_bleu',
         save_weights_only=True)
-    # tensorboard = tf.keras.callbacks.TensorBoard(
-    #     FLAGS.log_dir, )
+    tensorboard = tf.keras.callbacks.TensorBoard(
+        FLAGS.log_dir, write_images=True)
 
     _ = model.fit(
         train, epochs=cfg.EPOCHS, validation_data=val, shuffle=False,
         callbacks=[
-            ckpt
+            ckpt,
+            tensorboard
         ])
 
 
