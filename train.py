@@ -68,9 +68,10 @@ def canp_qc():
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
-    train = data.take(cfg.TRAIN_SIZE).batch(cfg.BATCH_SIZE).apply(to_gpu)
+    train = data.take(cfg.TRAIN_SIZE).batch(
+        cfg.BATCH_SIZE, drop_remainder=True).repeat(37).apply(to_gpu)
     val = data.skip(cfg.TRAIN_SIZE).take(
-        cfg.VAL_SIZE).batch(cfg.BATCH_SIZE).apply(to_gpu)
+        cfg.VAL_SIZE).batch(cfg.BATCH_SIZE, drop_remainder=True).apply(to_gpu)
     with tf.device("/gpu:0"):
         train = train.prefetch(3)
         val = val.prefetch(2)
@@ -93,10 +94,31 @@ def canp_qc():
     pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
 
     model = CANP_QC(vocab, ner, pos)
-    loc = cfg.MODEL_SAVE
-    model.fit(
-        train, epochs=cfg.EPOCHS,
-        save_loc=loc, eval_set=val, warm_start=True)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(cfg.LR, clipnorm=cfg.CLIP_NORM),
+        loss=CopyNetLoss(),
+        metrics=[
+            # BLEU(ignore_tokens=[0, 2, 3], ignore_all_tokens_after=3),
+            # BLEU(ignore_tokens=[0, 2, 3], ignore_all_tokens_after=3,
+            #      name='bleu-smooth', smooth=True)
+        ]
+    )
+    ckpt = tf.keras.callbacks.ModelCheckpoint(
+        cfg.MODEL_SAVE+"/{epoch:02d}.tf", monitor='val_loss',
+        save_weights_only=True)
+    # tensorboard = tf.keras.callbacks.TensorBoard(
+    #     FLAGS.log_dir, write_images=True)
+
+    if cfg.STEPS_PER_EPOCH == -1:
+        cfg.STEPS_PER_EPOCH = None
+
+    _ = model.fit(
+        train, epochs=cfg.EPOCHS, validation_data=val, shuffle=True,
+        steps_per_epoch=cfg.STEPS_PER_EPOCH,
+        callbacks=[
+            ckpt,
+            # tensorboard
+        ])
 
 
 def canp_preqc():

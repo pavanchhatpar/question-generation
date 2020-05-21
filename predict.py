@@ -97,8 +97,9 @@ def canp_qc():
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
-    train = data.take(10).batch(128).apply(to_gpu)
-    val = data.skip(cfg.TRAIN_SIZE).take(10).batch(128).apply(to_gpu)
+    train = data.take(10).batch(10, drop_remainder=True).apply(to_gpu)
+    val = data.skip(cfg.TRAIN_SIZE).skip(cfg.VAL_SIZE).take(10).batch(
+        10, drop_remainder=True).apply(to_gpu)
     with tf.device("/gpu:0"):
         train = train.prefetch(1)
         val = val.prefetch(1)
@@ -121,8 +122,19 @@ def canp_qc():
     pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
 
     model = CANP_QC(vocab, ner, pos)
-    model.load(cfg.MODEL_SAVE)
-    pred, logprobas = model.predict(val)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(cfg.LR, clipnorm=cfg.CLIP_NORM),
+        loss=CopyNetLoss(),
+        metrics=[
+            # BLEU(ignore_tokens=[0, 2, 3], ignore_all_tokens_after=3),
+            # BLEU(ignore_tokens=[0, 2, 3], ignore_all_tokens_after=3,
+            #      name='bleu-smooth', smooth=True)
+        ]
+    )
+    filename = tf.train.latest_checkpoint(cfg.MODEL_SAVE)
+    model.load_weights(filename)
+    out = model.predict(val)
+    pred, logprobas = out['predictions'], out['predicted_probas']
     i = 0
     for X, y in val.unbatch():
         cis, cit, answer, ner, pos = X
@@ -154,7 +166,7 @@ def canp_qc():
 
         print(f"Top Questions:")
         for j in range(10):
-            p = idx2str(pred[i][j].numpy(), cis.numpy(), vocab)
+            p = idx2str(pred[i][j], cis.numpy(), vocab)
             print(f"Predicted: {' '.join(p)}\t"
                   f"Proba: {tf.exp(logprobas[i][j])}")
         # print(f"Log probs:- {logprobas[i]}")

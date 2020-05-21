@@ -1,6 +1,5 @@
 import tensorflow as tf
 import tensorflow.keras.layers as layers
-from tensorflow.keras import Model
 from typing import Dict, Any, Tuple
 from copynet_tf import Vocab
 from copynet_tf.layers import FixedEmbedding
@@ -9,7 +8,7 @@ from ..config import cfg
 from ..features import NERTagger, PosTagger
 
 
-class CANP_QC_Encoder(Model):
+class CANP_QC_Encoder(layers.Layer):
     def __init__(self,
                  vocab: Vocab,
                  ner: NERTagger,
@@ -28,6 +27,7 @@ class CANP_QC_Encoder(Model):
         self.bigru = layers.Bidirectional(layers.GRU(
             cfg.HIDDEN_DIM//2, return_sequences=True, return_state=True))
 
+    @tf.function
     def call(self,
              cis: tf.Tensor,
              ans: tf.Tensor,
@@ -36,11 +36,11 @@ class CANP_QC_Encoder(Model):
              enc_hidden: tf.Tensor,
              training: bool = False) -> Tuple[
                  tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
-        with tf.device("cpu:0"):
-            # shape: (batch_size, cseq_len, 300)
-            tokenemb = self.token_emb_layer(cis)
-            # shape: (batch_size, cseq_len)
-            source_mask = self.token_emb_layer.compute_mask(cis)
+        # with tf.device("cpu:0"):
+        # shape: (batch_size, cseq_len, 300)
+        tokenemb = self.token_emb_layer(cis)
+        # shape: (batch_size, cseq_len)
+        source_mask = self.token_emb_layer.compute_mask(cis)
 
         # shape: (batch_size, cseq_len, 3)
         neremb = self.ner_emb_layer(ner)
@@ -63,7 +63,7 @@ class CANP_QC_Encoder(Model):
         # shape: (batch_size, hidden_dim)
         hD = tf.concat([hD_1, hD_2], -1)
 
-        return hd, hD, source_mask, tokenemb
+        return hd, hD, source_mask
 
     def initialize_hidden_size(self, batch_sz):
         return [
