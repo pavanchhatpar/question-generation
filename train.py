@@ -106,7 +106,7 @@ def canp_preqc():
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
     train = data.take(cfg.TRAIN_SIZE).batch(
-        cfg.BATCH_SIZE, drop_remainder=True).apply(to_gpu)
+        cfg.BATCH_SIZE, drop_remainder=True).repeat(37).apply(to_gpu)
     val = data.skip(cfg.TRAIN_SIZE).take(
         cfg.VAL_SIZE).batch(cfg.BATCH_SIZE, drop_remainder=True).apply(to_gpu)
     with tf.device("/gpu:0"):
@@ -148,8 +148,12 @@ def canp_preqc():
     tensorboard = tf.keras.callbacks.TensorBoard(
         FLAGS.log_dir, write_images=True)
 
+    if cfg.STEPS_PER_EPOCH == -1:
+        cfg.STEPS_PER_EPOCH = None
+
     _ = model.fit(
         train, epochs=cfg.EPOCHS, validation_data=val, shuffle=False,
+        steps_per_epoch=cfg.STEPS_PER_EPOCH,
         callbacks=[
             ckpt,
             tensorboard

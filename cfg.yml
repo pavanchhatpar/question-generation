@@ -1,5 +1,5 @@
 CONFIG_NAME: 'no-docker'
-LOG_FILENAME: './data/log.txt'
+MODEL: 'canp-qc'
 
 SAVE_LOC: './data/canp_qc/features'
 MODEL_SAVE: './data/canp_qc/model'
@@ -11,7 +11,8 @@ MIN_QVOCAB_FREQ: 10
 BEAM_WIDTH: 10
 QPRED_LEN: 19
 
-EPOCHS: 40
+EPOCHS: 60
 BATCH_SIZE: 512
-TRAIN_SIZE: 50000
+TRAIN_SIZE: 55000
 VAL_SIZE: 5000
+STEPS_PER_EPOCH: 60

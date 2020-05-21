@@ -1,8 +1,11 @@
 import tensorflow as tf
-import argparse
+from logging import Formatter
 import numpy as np
-import logging
+from absl import logging, flags, app
 from copynet_tf import Vocab
+from copynet_tf.loss import CopyNetLoss
+from copynet_tf.metrics import BLEU
+import os
 
 from text_gan import cfg, cfg_from_file
 from text_gan.data.squad1_ca_q import Squad1_CA_Q
@@ -15,24 +18,7 @@ from text_gan.models import CANP_QC
 from text_gan.data.squad_ca_preqc import SQuAD_CA_PreQC
 from text_gan.models import CANP_PreQC
 
-MODELS = [
-    "canpz-q",
-    "canp-qc",
-    "canp-preqc",
-]
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model", "-m", choices=MODELS,
-        required=True, dest="model",
-        help="Select model to run predictions from")
-    parser.add_argument(
-        "--cfg", dest="cfg", type=str, help="Config YAML filepath",
-        required=False, default=None)
-    args = parser.parse_args()
-    return args
+FLAGS = flags.FLAGS
 
 
 def canpz_q():
@@ -185,8 +171,9 @@ def canp_preqc():
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
     data = data.train.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
-    train = data.take(10).batch(128).apply(to_gpu)
-    val = data.skip(cfg.TRAIN_SIZE).take(10).batch(128).apply(to_gpu)
+    train = data.take(10).batch(10, drop_remainder=True).apply(to_gpu)
+    val = data.skip(cfg.TRAIN_SIZE).skip(cfg.VAL_SIZE).take(10).batch(
+        10, drop_remainder=True).apply(to_gpu)
     with tf.device("/gpu:0"):
         train = train.prefetch(1)
         val = val.prefetch(1)
@@ -209,8 +196,19 @@ def canp_preqc():
     pos = PosTagger(cfg.POS_TAGS_FILE, cfg.CSEQ_LEN)
 
     model = CANP_PreQC(vocab, ner, pos)
-    model.load(cfg.MODEL_SAVE)
-    pred, logprobas = model.predict(val)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(cfg.LR, clipnorm=cfg.CLIP_NORM),
+        loss=CopyNetLoss(),
+        metrics=[
+            BLEU(ignore_tokens=[0, 2, 3], ignore_all_tokens_after=3),
+            BLEU(ignore_tokens=[0, 2, 3], ignore_all_tokens_after=3,
+                 name='bleu-smooth', smooth=True)
+        ]
+    )
+    filename = tf.train.latest_checkpoint(cfg.MODEL_SAVE)
+    model.load_weights(filename)
+    out = model.predict(val)
+    pred, logprobas = out['predictions'], out['predicted_probas']
     i = 0
     for X, y in val.unbatch():
         cis, cit, answer, ner, pos, preq = X
@@ -244,7 +242,7 @@ def canp_preqc():
 
         print(f"Top Suffixes:")
         for j in range(10):
-            p = idx2str(pred[i][j].numpy(), cis.numpy(), vocab)
+            p = idx2str(pred[i][j], cis.numpy(), vocab)
             print(f"Predicted: {' '.join(p)}\t"
                   f"Proba: {tf.exp(logprobas[i][j])}")
         # print(f"Log probs:- {logprobas[i]}")
@@ -272,23 +270,33 @@ MODEL_METHODS = {
     "canp-preqc": canp_preqc,
 }
 
+flags.DEFINE_string("cfg", None, "Config YAML filepath")
 
-def main(args):
-    if args.cfg is not None:
-        cfg_from_file(args.cfg)
-    logging.basicConfig(
-        level=cfg.LOG_LVL,
-        filename=cfg.LOG_FILENAME,
-        format='%(message)s')
-    MODEL_METHODS[args.model]()
+
+def main(argv):
+    del argv
+
+    if FLAGS.cfg is not None:
+        cfg_from_file(FLAGS.cfg)
+
+    if FLAGS.log_dir is not None and FLAGS.log_dir != "":
+        if not os.path.exists(FLAGS.log_dir):
+            os.makedirs(FLAGS.log_dir)
+        if not os.path.isdir(FLAGS.log_dir):
+            raise ValueError(f"{FLAGS.log_dir} should be a directory!")
+        logging.get_absl_handler().use_absl_log_file()
+
+    logging.get_absl_handler().setFormatter(
+        Formatter(fmt="%(levelname)s:%(message)s"))
+
+    MODEL_METHODS[cfg.MODEL]()
 
 
 if __name__ == "__main__":
-    args = parse_args()
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
         try:
             tf.config.experimental.set_memory_growth(gpus[0], True)
         except RuntimeError as e:
             print(e)
-    main(args)
+    app.run(main)

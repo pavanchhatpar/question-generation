@@ -50,6 +50,7 @@ __C.DROPOUT = 0.3
 __C.EPOCHS = 100
 __C.TRAIN_SIZE = 10000
 __C.VAL_SIZE = 1000
+__C.STEPS_PER_EPOCH = -1
 # End defining default config
 
 
