@@ -174,5 +174,10 @@ class CANP_QC(Model):
 
     @tf.function
     def predict_step(self, data):
-        X, _ = data
+        if len(data) == 2:  # has y
+            X, _ = data
+        elif len(data) == 1:  # has shape (X, )
+            X = data[0]
+        else:
+            X = data
         return self(X)

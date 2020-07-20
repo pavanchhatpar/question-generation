@@ -95,13 +95,13 @@ def canp_qc():
     RNG_SEED = 11
     data = SQuAD_CA_QC()
     to_gpu = tf.data.experimental.copy_to_device("/gpu:0")
-    data = data.train.shuffle(
+    data = data.test.shuffle(
         buffer_size=10000, seed=RNG_SEED, reshuffle_each_iteration=False)
-    train = data.take(10).batch(10, drop_remainder=True).apply(to_gpu)
-    val = data.skip(cfg.TRAIN_SIZE).skip(cfg.VAL_SIZE).take(10).batch(
-        10, drop_remainder=True).apply(to_gpu)
+    val = data.take(10).batch(10, drop_remainder=True).apply(to_gpu)
+    # val = data.skip(cfg.TRAIN_SIZE).skip(cfg.VAL_SIZE).take(10).batch(
+    #     10, drop_remainder=True).apply(to_gpu)
     with tf.device("/gpu:0"):
-        train = train.prefetch(1)
+        # train = train.prefetch(1)
         val = val.prefetch(1)
     if cfg.EMBS_TYPE == 'glove':
         embedding_reader = GloVeReader()

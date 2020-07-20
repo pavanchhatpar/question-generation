@@ -28,7 +28,7 @@ class DownloadManager:
 
 
 class SQuADReader:
-    def parse(self, filename):
+    def parse(self, filename, qids=False):
         with open(filename, "r") as f:
             raw = json.load(f)
         all_titles = raw["data"]
@@ -43,8 +43,10 @@ class SQuADReader:
                 for qa in paragraph["qas"]:
                     question = qa["question"]
                     answer = qa["answers"][0]["text"]
-                    parsed_paragraph["qas"].append(
-                        {"question": question, "answer": answer})
+                    qac = {"question": question, "answer": answer}
+                    if qids:
+                        qac['qid'] = qa['id']
+                    parsed_paragraph["qas"].append(qac)
                 parsed.append(parsed_paragraph)
         return parsed
 
@@ -65,14 +67,17 @@ class SQuADReader:
             filtered.append(filtered_paragraph)
         return filtered
 
-    def flatten_parsed(self, parsed):
+    def flatten_parsed(self, parsed, qids=False):
         flattened = []
         for paragraph in parsed:
             context = paragraph["context"]
             for qa in paragraph["qas"]:
-                flattened.append({
+                flat = {
                     "context": context,
                     "question": qa["question"],
                     "answer": qa["answer"]
-                })
+                }
+                if qids:
+                    flat['qid'] = qa['qid']
+                flattened.append(flat)
         return flattened
