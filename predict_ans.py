@@ -74,19 +74,21 @@ def main(_):
             try:
                 answers = nlp(
                     context=batch_context,
-                    question=batch_pred_question)['answer']
-                for answer, qid in answers, zip(batch_qid):
-                    pred_ans[qid] = answer
+                    question=batch_pred_question)
+                for answer, qid in zip(answers, batch_qid):
+                    pred_ans[qid] = answer['answer']
             except Exception as e:  # noqa
+                print("pred", e)
                 pass
 
             try:
                 answers = nlp(
                     context=batch_context,
-                    question=batch_orig_question)['answer']
-                for answer, qid in answers, zip(batch_qid):
-                    orig_ans[qid] = answer
+                    question=batch_orig_question)
+                for answer, qid in zip(answers, batch_qid):
+                    orig_ans[qid] = answer['answer']
             except Exception as e:  # noqa
+                print("orig", e)
                 pass
 
             batch_context = []
@@ -98,19 +100,21 @@ def main(_):
         try:
             answers = nlp(
                 context=batch_context,
-                question=batch_pred_question)['answer']
-            for answer, qid in answers, zip(batch_qid):
-                pred_ans[qid] = answer
+                question=batch_pred_question)
+            for answer, qid in zip(answers, batch_qid):
+                pred_ans[qid] = answer['answer']
         except Exception as e:  # noqa
+            print("pred", e)
             pass
 
         try:
             answers = nlp(
                 context=batch_context,
-                question=batch_orig_question)['answer']
-            for answer, qid in answers, zip(batch_qid):
-                orig_ans[qid] = answer
+                question=batch_orig_question)
+            for answer, qid in zip(answers, batch_qid):
+                orig_ans[qid] = answer['answer']
         except Exception as e:  # noqa
+            print("orig", e)
             pass
 
     with open(f"{FLAGS.out}-pred-ans.json", "w") as fp:
