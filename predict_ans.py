@@ -52,7 +52,7 @@ def main(_):
     pred_ans = {}
     orig_ans = {}
 
-    batch_size = 128
+    batch_size = 256
 
     batch_context = []
     batch_pred_question = []
@@ -94,7 +94,7 @@ def main(_):
             batch_orig_question = []
             batch_qid = []
 
-    if len(batch_size) > 0:
+    if len(batch_context) > 0:
         try:
             answers = nlp(
                 context=batch_context,
@@ -113,10 +113,10 @@ def main(_):
         except Exception as e:  # noqa
             pass
 
-    with open(f"{FLAGS.out}-pred.json", "w") as fp:
+    with open(f"{FLAGS.out}-pred-ans.json", "w") as fp:
         json.dump(pred_ans, fp)
 
-    with open(f"{FLAGS.out}-orig.json", "w") as fp:
+    with open(f"{FLAGS.out}-orig-ans.json", "w") as fp:
         json.dump(orig_ans, fp)
 
 

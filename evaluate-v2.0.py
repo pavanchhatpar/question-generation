@@ -1,3 +1,4 @@
+# flake8: noqa
 """Official evaluation script for SQuAD version 2.0.
 
 In addition to basic functionality, we also compute additional statistics and
