@@ -1,0 +1,10 @@
+tensorflow_datasets==2.0.0
+flake8==3.7.9
+ujson==2.0.2
+easydict==1.9
+spacy==2.2.4
+ptvsd==4.3.2
+copynet-tf==0.2.0
+wget==3.2
+pyyaml==5.3.1
+-e ./project

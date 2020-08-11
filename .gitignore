@@ -2,3 +2,9 @@
 **/*checkpoint.ipynb
 **/*.h5
 **/sampled_images
+*egg-info
+jupyter.password
+**/__pycache__
+.env
+lock.env
+/data
