@@ -6,5 +6,5 @@ spacy==2.2.4
 ptvsd==4.3.2
 copynet-tf==0.2.0
 wget==3.2
-pyyaml==5.3.1
+pyyaml==5.4
 -e ./project
