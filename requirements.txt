@@ -1,6 +1,6 @@
 tensorflow_datasets==2.0.0
 flake8==3.7.9
-ujson==2.0.2
+ujson==5.2.0
 easydict==1.9
 spacy==2.2.4
 ptvsd==4.3.2
